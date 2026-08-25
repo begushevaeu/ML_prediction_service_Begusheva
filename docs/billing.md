@@ -50,3 +50,9 @@ If a user has no credits, the API returns `402` with:
 Successful mock payment confirmation creates one `payment_credit` transaction
 linked to the payment row. Repeated confirmation reuses the same idempotency key
 and does not increase the balance twice.
+
+## Promo Credits
+
+Successful promo code redemption creates one `promo_credit` transaction linked
+to the redemption row. A user can redeem the same promo code only once, and max
+redemption limits are checked before credits are granted.

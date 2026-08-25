@@ -1,0 +1,1 @@
+"""Promo code domain package."""

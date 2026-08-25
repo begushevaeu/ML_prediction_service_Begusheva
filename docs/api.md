@@ -21,6 +21,8 @@ Regular HTTP errors use the status code as `code`. Deferred workflow endpoints
 return `501` with `code` set to `not_implemented`. ML upload validation can also
 return `unsupported_model_file`, `invalid_model_file`, or `model_file_too_large`.
 Billing can return `insufficient_credits`.
+Promo codes can return `promo_code_exists`, `promo_not_active`,
+`promo_already_redeemed`, or `promo_limit_reached`.
 
 ## Implemented Contracts
 
@@ -46,6 +48,10 @@ Billing can return `insufficient_credits`.
 | Payments | `GET /api/v1/payments/{payment_id}` | Implemented payment lookup |
 | Payments | `POST /api/v1/payments` | Implemented mock payment creation |
 | Payments | `POST /api/v1/payments/{payment_id}/confirm` | Implemented mock confirmation |
+| Promo Codes | `GET /api/v1/promo-codes` | Implemented admin list |
+| Promo Codes | `POST /api/v1/promo-codes` | Implemented admin create |
+| Promo Codes | `GET /api/v1/promo-codes/redemptions` | Implemented user redemption list |
+| Promo Codes | `POST /api/v1/promo-codes/redeem` | Implemented user redemption |
 
 All model, prediction, billing, and payment endpoints are protected by bearer
 authentication and only return rows owned by the current user.
@@ -81,3 +87,10 @@ configured prediction price, while failed predictions do not debit credits.
 /api/v1/payments/{payment_id}/confirm` marks it as succeeded and adds the
 purchased credits to the user's balance through a `payment_credit` ledger row.
 Repeated confirmation is safe and does not credit the balance twice.
+
+## Promo Codes
+
+Admins can create fixed-credit promo codes. Users redeem a code once with
+`POST /api/v1/promo-codes/redeem`, which creates a `promo_credit` ledger row and
+adds credits to the common balance. Inactive, expired, exhausted, missing, and
+already-redeemed codes are rejected.

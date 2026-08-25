@@ -100,6 +100,9 @@ def test_openapi_exposes_base_api_contracts(client: TestClient) -> None:
     assert "/api/v1/payments" in paths
     assert "/api/v1/payments/{payment_id}" in paths
     assert "/api/v1/payments/{payment_id}/confirm" in paths
+    assert "/api/v1/promo-codes" in paths
+    assert "/api/v1/promo-codes/redeem" in paths
+    assert "/api/v1/promo-codes/redemptions" in paths
 
 
 def test_empty_domain_lists_and_balance_are_available(client: TestClient) -> None:
@@ -116,6 +119,7 @@ def test_empty_domain_lists_and_balance_are_available(client: TestClient) -> Non
         "/api/v1/predictions",
         "/api/v1/billing/transactions",
         "/api/v1/payments",
+        "/api/v1/promo-codes/redemptions",
     ):
         response = client.get(endpoint, headers=headers)
         assert response.status_code == 200

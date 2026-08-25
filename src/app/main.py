@@ -23,6 +23,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status.HTTP_402_PAYMENT_REQUIRED: {"model": ErrorResponse},
             status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
             status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+            status.HTTP_409_CONFLICT: {"model": ErrorResponse},
             422: {"model": ErrorResponse},
             status.HTTP_501_NOT_IMPLEMENTED: {"model": ErrorResponse},
         },

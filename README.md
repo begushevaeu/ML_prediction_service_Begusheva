@@ -167,6 +167,14 @@ adds credits through the billing ledger and is safe to repeat.
 
 The mock payment flow is documented in `docs/payments.md`.
 
+## Promo Codes
+
+Admins can create fixed-credit promo codes, and users can redeem active codes
+once into their common credit balance. Successful redemption writes a
+`promo_credit` billing transaction.
+
+The promo code flow is documented in `docs/promo-codes.md`.
+
 ## Project Structure
 
 ```text
@@ -178,6 +186,7 @@ The mock payment flow is documented in `docs/payments.md`.
 │   ├── ml/                     Model loading and ML services
 │   ├── billing/                Credit balance and transactions
 │   ├── payments/               Mock/sandbox payment flow
+│   ├── promo_codes/            Fixed-credit promo codes
 │   ├── dashboard/              Future Streamlit analytics dashboard
 │   ├── db/                     Database sessions, models, migrations glue
 │   ├── core/                   Settings, errors, shared application utilities
