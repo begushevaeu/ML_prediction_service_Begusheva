@@ -169,18 +169,6 @@ def test_deferred_create_endpoints_validate_and_return_501(client: TestClient) -
     token = login_user(client)
     headers = auth_headers(token)
 
-    invalid_model = client.post("/api/v1/models", json={}, headers=headers)
-    assert invalid_model.status_code == 422
-    assert invalid_model.json()["error"]["code"] == "validation_error"
-
-    model_response = client.post(
-        "/api/v1/models",
-        json={"name": "Forecast model", "metadata": {"version": 1}},
-        headers=headers,
-    )
-    assert model_response.status_code == 501
-    assert model_response.json()["error"]["code"] == "not_implemented"
-
     invalid_prediction = client.post(
         "/api/v1/predictions",
         json={"model_id": 0, "input_payload": {}},

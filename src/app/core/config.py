@@ -35,6 +35,7 @@ class Settings:
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     model_storage_path: str = "/var/lib/ml_prediction_service/models"
+    max_model_upload_size_bytes: int = 10 * 1024 * 1024
     prediction_price_credits: int = 1
 
 
@@ -56,6 +57,10 @@ def get_settings() -> Settings:
             Settings.access_token_expire_minutes,
         ),
         model_storage_path=os.getenv("MODEL_STORAGE_PATH", Settings.model_storage_path),
+        max_model_upload_size_bytes=_read_int(
+            "MAX_MODEL_UPLOAD_SIZE_BYTES",
+            Settings.max_model_upload_size_bytes,
+        ),
         prediction_price_credits=_read_int(
             "PREDICTION_PRICE_CREDITS",
             Settings.prediction_price_credits,

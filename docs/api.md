@@ -18,7 +18,8 @@ Expected HTTP and validation errors use one envelope:
 ```
 
 Regular HTTP errors use the status code as `code`. Deferred workflow endpoints
-return `501` with `code` set to `not_implemented`.
+return `501` with `code` set to `not_implemented`. ML upload validation can also
+return `unsupported_model_file`, `invalid_model_file`, or `model_file_too_large`.
 
 ## Implemented Contracts
 
@@ -33,7 +34,7 @@ return `501` with `code` set to `not_implemented`.
 | Users | `GET /api/v1/users/admin-check` | Implemented |
 | Models | `GET /api/v1/models` | Implemented metadata list |
 | Models | `GET /api/v1/models/{model_id}` | Implemented metadata lookup |
-| Models | `POST /api/v1/models` | Contract only; upload follows in Step 6 |
+| Models | `POST /api/v1/models` | Implemented multipart model upload |
 | Predictions | `GET /api/v1/predictions` | Implemented task list |
 | Predictions | `GET /api/v1/predictions/{prediction_id}` | Implemented task lookup |
 | Predictions | `POST /api/v1/predictions` | Contract only; execution follows in Step 7 |
@@ -44,3 +45,18 @@ return `501` with `code` set to `not_implemented`.
 
 All model, prediction, billing, and payment endpoints are protected by bearer
 authentication and only return rows owned by the current user.
+
+## Model Upload
+
+`POST /api/v1/models` accepts a multipart form:
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| `name` | yes | User-visible model name |
+| `file` | yes | `.joblib`, `.pkl`, or `.pickle` model artifact |
+| `framework` | no | Defaults to `scikit-learn` |
+| `metadata_json` | no | JSON object with user-supplied metadata |
+
+The MVP validates trusted Scikit-learn/joblib/pickle artifacts by loading the
+file and checking that the resulting object has a callable `predict` method.
+Prediction execution is still deferred to Step 7.

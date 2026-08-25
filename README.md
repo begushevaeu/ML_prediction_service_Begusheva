@@ -132,6 +132,15 @@ predictions, billing, and payments. Some workflow endpoints intentionally return
 
 The API contract and error format are documented in `docs/api.md`.
 
+## ML Models
+
+Authenticated users can upload trusted Scikit-learn/joblib/pickle model artifacts
+through `POST /api/v1/models`. Uploaded artifacts are stored under
+`MODEL_STORAGE_PATH`, validated for a callable `predict` method, and recorded in
+the `ml_models` table.
+
+The model upload flow is documented in `docs/ml-models.md`.
+
 ## Project Structure
 
 ```text

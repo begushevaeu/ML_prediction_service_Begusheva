@@ -14,6 +14,7 @@ services:
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: "30"
       MODEL_STORAGE_PATH: /var/lib/ml_prediction_service/models
+      MAX_MODEL_UPLOAD_SIZE_BYTES: "10485760"
     ports:
       - "${BACKEND_PORT:-18000}:8000"
     volumes:
@@ -45,6 +46,7 @@ services:
       DATABASE_URL: postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service
       REDIS_URL: redis://redis:6379/0
       MODEL_STORAGE_PATH: /var/lib/ml_prediction_service/models
+      MAX_MODEL_UPLOAD_SIZE_BYTES: "10485760"
     volumes:
       - model_storage:/var/lib/ml_prediction_service/models
     depends_on:

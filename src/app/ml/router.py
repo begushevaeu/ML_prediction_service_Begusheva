@@ -2,13 +2,20 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile, status
 from sqlalchemy import select
 
 from app.auth.dependencies import CurrentUser, DbSession
-from app.core.errors import not_implemented_error
+from app.core.config import Settings, get_settings
 from app.db.models import MLModel
-from app.ml.schemas import MLModelCreate, MLModelListResponse, MLModelRead
+from app.ml.schemas import MLModelListResponse, MLModelRead
+from app.ml.service import (
+    normalize_framework,
+    normalize_model_name,
+    parse_metadata_json,
+    save_model_upload,
+    validate_model_artifact,
+)
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -70,13 +77,49 @@ def get_model(
 
 @router.post(
     "",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    response_model=MLModelRead,
+    status_code=status.HTTP_201_CREATED,
     summary="Upload a model",
 )
-def create_model(payload: MLModelCreate, current_user: CurrentUser) -> None:
-    """Validate the model-upload contract before storage is implemented."""
+async def create_model(
+    name: Annotated[str, Form(min_length=1, max_length=120)],
+    file: Annotated[UploadFile, File(description="Scikit-learn .joblib, .pkl, or .pickle file")],
+    current_user: CurrentUser,
+    session: DbSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    framework: Annotated[str, Form(min_length=1, max_length=50)] = "scikit-learn",
+    metadata_json: Annotated[str | None, Form(max_length=5000)] = None,
+) -> MLModelRead:
+    """Upload, validate, store, and register a model artifact."""
 
-    raise not_implemented_error("Model upload is implemented in Step 6.")
+    model_name = normalize_model_name(name)
+    normalized_framework = normalize_framework(framework)
+    user_metadata = parse_metadata_json(metadata_json)
+    saved_path, file_size = await save_model_upload(file, settings, current_user.id)
+
+    try:
+        technical_metadata = validate_model_artifact(saved_path, file.filename, file_size)
+        model_metadata = {
+            **technical_metadata,
+            "user_metadata": user_metadata,
+        }
+        model = MLModel(
+            owner_id=current_user.id,
+            name=model_name,
+            storage_path=str(saved_path),
+            framework=normalized_framework,
+            status="uploaded",
+            model_metadata=model_metadata,
+        )
+        session.add(model)
+        session.commit()
+        session.refresh(model)
+    except Exception:
+        session.rollback()
+        saved_path.unlink(missing_ok=True)
+        raise
+
+    return model_to_read(model)
 
 
 __all__ = ["router"]
