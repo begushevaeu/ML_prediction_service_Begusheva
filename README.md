@@ -10,7 +10,7 @@ The repository is being prepared stage by stage on `develop`. The current public
 foundation contains the application package, configuration entry points, health
 endpoint, database schema, authentication flow, base REST API contracts, quality
 commands, model upload, asynchronous prediction execution, credit billing, mock
-payments, and architecture documentation.
+payments, promo codes, analytics dashboard, and architecture documentation.
 
 ## Local Setup
 
@@ -175,11 +175,25 @@ once into their common credit balance. Successful redemption writes a
 
 The promo code flow is documented in `docs/promo-codes.md`.
 
+## Dashboard
+
+The Streamlit dashboard is available at:
+
+```text
+http://127.0.0.1:18501
+```
+
+Authenticated users can view their balance, prediction statuses, credit ledger,
+uploaded models, mock payments, and promo redemptions. The dashboard uses the
+same API login flow as Swagger.
+
+The dashboard flow is documented in `docs/dashboard.md`.
+
 ## Project Structure
 
 ```text
 .
-├── src/app/                    Future FastAPI application package
+├── src/app/                    FastAPI application package
 │   ├── api/                    REST API routers and contracts
 │   ├── auth/                   JWT auth and access control
 │   ├── users/                  User domain
@@ -187,11 +201,11 @@ The promo code flow is documented in `docs/promo-codes.md`.
 │   ├── billing/                Credit balance and transactions
 │   ├── payments/               Mock/sandbox payment flow
 │   ├── promo_codes/            Fixed-credit promo codes
-│   ├── dashboard/              Future Streamlit analytics dashboard
+│   ├── dashboard/              Streamlit analytics dashboard
 │   ├── db/                     Database sessions, models, migrations glue
 │   ├── core/                   Settings, errors, shared application utilities
-│   └── main.py                 Future application entry point
-├── tests/                      Future unit and integration tests
+│   └── main.py                 Application entry point
+├── tests/                      Unit and integration tests
 ├── migrations/                 Future database migrations
 ├── alembic.ini                 Alembic configuration
 ├── configs/                    Configuration templates
