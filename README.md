@@ -8,7 +8,8 @@ analytics dashboard, monitoring, Docker Compose, and tests.
 
 The repository is being prepared stage by stage on `develop`. The current public
 foundation contains the application package, configuration entry points, health
-endpoint, quality commands, and initial architecture documentation.
+endpoint, database schema, authentication flow, base REST API contracts, quality
+commands, and architecture documentation.
 
 ## Local Setup
 
@@ -116,6 +117,20 @@ Implemented endpoints:
 | `GET /api/v1/users/admin-check` | Verify admin role enforcement |
 
 The auth design is documented in `docs/authentication.md`.
+
+## REST API
+
+Swagger/OpenAPI is available at:
+
+```text
+http://127.0.0.1:18000/docs
+```
+
+The base API surface is defined for system health, auth, users, models,
+predictions, billing, and payments. Some workflow endpoints intentionally return
+`501 not_implemented` until their implementation steps arrive.
+
+The API contract and error format are documented in `docs/api.md`.
 
 ## Project Structure
 
