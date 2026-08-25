@@ -44,6 +44,39 @@ coverage run -m pytest
 coverage report
 ```
 
+## Docker Compose
+
+Build and start the local infrastructure:
+
+```powershell
+docker compose up --build
+```
+
+On Windows, if Docker fails to build from a path with non-ASCII characters,
+disable BuildKit for this shell session and retry:
+
+```powershell
+$env:DOCKER_BUILDKIT="0"
+$env:COMPOSE_DOCKER_CLI_BUILD="0"
+docker compose up --build
+```
+
+Services:
+
+| Service | URL / Port | Purpose |
+| --- | --- | --- |
+| `backend` | `http://127.0.0.1:18000` | FastAPI application |
+| `dashboard` | `http://127.0.0.1:18501` | Streamlit dashboard service |
+| `postgres` | `127.0.0.1:15432` | PostgreSQL database |
+| `redis` | `127.0.0.1:16379` | Redis broker/result backend |
+| `worker` | internal | Celery worker |
+
+Stop services:
+
+```powershell
+docker compose down
+```
+
 ## Project Structure
 
 ```text
@@ -63,6 +96,8 @@ coverage report
 ├── migrations/                 Future database migrations
 ├── configs/                    Configuration templates
 ├── docker/                     Docker-related files
+├── docker-compose.yml          Local infrastructure stack
+├── Dockerfile                  Application container image
 └── docs/                       Public project documentation
 ```
 

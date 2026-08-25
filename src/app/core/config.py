@@ -21,6 +21,9 @@ class Settings:
     app_env: str = "local"
     app_debug: bool = False
     api_v1_prefix: str = "/api/v1"
+    database_url: str = "postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service"
+    redis_url: str = "redis://redis:6379/0"
+    model_storage_path: str = "/var/lib/ml_prediction_service/models"
 
 
 @lru_cache
@@ -32,4 +35,7 @@ def get_settings() -> Settings:
         app_env=os.getenv("APP_ENV", Settings.app_env),
         app_debug=_read_bool("APP_DEBUG", Settings.app_debug),
         api_v1_prefix=os.getenv("API_V1_PREFIX", Settings.api_v1_prefix),
+        database_url=os.getenv("DATABASE_URL", Settings.database_url),
+        redis_url=os.getenv("REDIS_URL", Settings.redis_url),
+        model_storage_path=os.getenv("MODEL_STORAGE_PATH", Settings.model_storage_path),
     )

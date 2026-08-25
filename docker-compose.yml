@@ -1,0 +1,96 @@
+services:
+  backend:
+    build:
+      context: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      APP_NAME: "ML Prediction Service"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      API_V1_PREFIX: /api/v1
+      DATABASE_URL: postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service
+      REDIS_URL: redis://redis:6379/0
+      MODEL_STORAGE_PATH: /var/lib/ml_prediction_service/models
+    ports:
+      - "${BACKEND_PORT:-18000}:8000"
+    volumes:
+      - model_storage:/var/lib/ml_prediction_service/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2).read()",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    environment:
+      APP_NAME: "ML Prediction Service"
+      APP_ENV: local
+      DATABASE_URL: postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service
+      REDIS_URL: redis://redis:6379/0
+      MODEL_STORAGE_PATH: /var/lib/ml_prediction_service/models
+    volumes:
+      - model_storage:/var/lib/ml_prediction_service/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: .
+    command:
+      streamlit run src/app/dashboard/main.py --server.address=0.0.0.0 --server.port=8501
+    environment:
+      APP_NAME: "ML Prediction Service"
+      APP_ENV: local
+      API_BASE_URL: http://backend:8000/api/v1
+    ports:
+      - "${DASHBOARD_PORT:-18501}:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ml_user
+      POSTGRES_PASSWORD: change-me
+      POSTGRES_DB: ml_prediction_service
+    ports:
+      - "${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ml_user -d ml_prediction_service"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-16379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
+  model_storage:

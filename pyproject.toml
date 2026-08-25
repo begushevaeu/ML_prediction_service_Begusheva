@@ -5,7 +5,11 @@ description = "Production-like educational ML prediction service."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "celery>=5.4,<6.0",
     "fastapi>=0.115,<1.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "redis>=5.0,<7.0",
+    "streamlit>=1.40,<2.0",
     "uvicorn[standard]>=0.30,<1.0",
 ]
 
