@@ -31,6 +31,9 @@ class Settings:
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service"
     redis_url: str = "redis://redis:6379/0"
+    jwt_secret_key: str = "change-me-to-a-long-random-secret-key"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
     model_storage_path: str = "/var/lib/ml_prediction_service/models"
     prediction_price_credits: int = 1
 
@@ -46,6 +49,12 @@ def get_settings() -> Settings:
         api_v1_prefix=os.getenv("API_V1_PREFIX", Settings.api_v1_prefix),
         database_url=os.getenv("DATABASE_URL", Settings.database_url),
         redis_url=os.getenv("REDIS_URL", Settings.redis_url),
+        jwt_secret_key=os.getenv("JWT_SECRET_KEY", Settings.jwt_secret_key),
+        jwt_algorithm=os.getenv("JWT_ALGORITHM", Settings.jwt_algorithm),
+        access_token_expire_minutes=_read_int(
+            "ACCESS_TOKEN_EXPIRE_MINUTES",
+            Settings.access_token_expire_minutes,
+        ),
         model_storage_path=os.getenv("MODEL_STORAGE_PATH", Settings.model_storage_path),
         prediction_price_credits=_read_int(
             "PREDICTION_PRICE_CREDITS",

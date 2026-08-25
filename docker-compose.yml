@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
       APP_NAME: "ML Prediction Service"
       APP_ENV: local
@@ -10,6 +10,9 @@ services:
       API_V1_PREFIX: /api/v1
       DATABASE_URL: postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service
       REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-to-a-long-random-secret-key
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
       MODEL_STORAGE_PATH: /var/lib/ml_prediction_service/models
     ports:
       - "${BACKEND_PORT:-18000}:8000"

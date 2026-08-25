@@ -17,6 +17,7 @@ are treated as agreed decisions until the owner explicitly approves a change.
 | Payments | Mock/sandbox payments for MVP |
 | Credit packages | Deferred; payments store purchased credits directly for now |
 | Roles | user and admin |
+| Logout | Stateless JWT logout; client discards the bearer token |
 | User analytics dashboard | Streamlit |
 | Containers | Docker and Docker Compose |
 | Monitoring | Prometheus and Grafana |

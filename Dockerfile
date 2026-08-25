@@ -7,6 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
+COPY alembic.ini ./alembic.ini
+COPY migrations ./migrations
 COPY src ./src
 
 RUN python -m pip install --no-cache-dir --upgrade pip \

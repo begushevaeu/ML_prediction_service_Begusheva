@@ -85,6 +85,9 @@ Apply the current database schema:
 alembic upgrade head
 ```
 
+The local Docker Compose backend also runs `alembic upgrade head` before Uvicorn
+starts, so a clean compose startup prepares the database automatically.
+
 Create future schema revisions from SQLAlchemy models:
 
 ```powershell
@@ -92,6 +95,27 @@ alembic revision --autogenerate -m "describe change"
 ```
 
 The schema design is documented in `docs/database.md`.
+
+## Authentication
+
+The MVP auth flow is available in Swagger:
+
+```text
+http://127.0.0.1:18000/docs
+```
+
+Implemented endpoints:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/v1/auth/register` | Register a default-role user |
+| `POST /api/v1/auth/login` | Return a JWT bearer token |
+| `POST /api/v1/auth/logout` | Document stateless client-side logout |
+| `GET /api/v1/users/me` | Return the current authenticated user |
+| `PATCH /api/v1/users/me` | Update allowed profile fields |
+| `GET /api/v1/users/admin-check` | Verify admin role enforcement |
+
+The auth design is documented in `docs/authentication.md`.
 
 ## Project Structure
 

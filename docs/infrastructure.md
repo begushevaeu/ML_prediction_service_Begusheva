@@ -8,7 +8,7 @@ billing, payments, and analytics behavior are implemented in later stages.
 
 | Service | Image / command | Responsibility |
 | --- | --- | --- |
-| `backend` | local `Dockerfile`, Uvicorn | Runs the FastAPI app on host port `18000` |
+| `backend` | local `Dockerfile`, Alembic + Uvicorn | Applies migrations, then runs the FastAPI app on host port `18000` |
 | `worker` | local `Dockerfile`, Celery | Starts the asynchronous worker process |
 | `dashboard` | local `Dockerfile`, Streamlit | Starts the dashboard service on host port `18501` |
 | `postgres` | `postgres:16-alpine` | Provides PostgreSQL on host port `15432` |
