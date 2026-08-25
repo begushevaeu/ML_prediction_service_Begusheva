@@ -2,10 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import select
 
 from app.auth.dependencies import CurrentUser, DbSession
+from app.billing.service import InsufficientCreditsError, require_sufficient_credits
+from app.core.config import Settings, get_settings
 from app.db.models import MLModel, PredictionTask
 from app.predictions.schemas import PredictionCreate, PredictionListResponse, PredictionRead
 from app.predictions.service import validate_prediction_input_payload
@@ -89,6 +91,7 @@ def create_prediction(
     payload: PredictionCreate,
     current_user: CurrentUser,
     session: DbSession,
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> PredictionRead:
     """Create a prediction task and enqueue asynchronous execution."""
 
@@ -105,6 +108,22 @@ def create_prediction(
         )
 
     validate_prediction_input_payload(payload.input_payload)
+    try:
+        require_sufficient_credits(
+            session,
+            current_user.id,
+            settings.prediction_price_credits,
+        )
+    except InsufficientCreditsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "code": "insufficient_credits",
+                "message": str(exc),
+                "details": {"available": exc.available, "required": exc.required},
+            },
+        ) from exc
+
     prediction = PredictionTask(
         user_id=current_user.id,
         model_id=model.id,

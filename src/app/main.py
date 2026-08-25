@@ -20,6 +20,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version="0.1.0",
         responses={
             status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+            status.HTTP_402_PAYMENT_REQUIRED: {"model": ErrorResponse},
             status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
             status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
             422: {"model": ErrorResponse},

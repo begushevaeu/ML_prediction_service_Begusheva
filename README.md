@@ -149,6 +149,15 @@ worker stores either `result_payload.predictions` or an execution error.
 
 The prediction lifecycle is documented in `docs/predictions.md`.
 
+## Billing
+
+The core billing layer tracks integer credits through a user balance and an
+immutable ledger. Prediction requests require available credits, and successful
+predictions debit the configured prediction price. Failed predictions do not
+debit credits.
+
+The billing rules are documented in `docs/billing.md`.
+
 ## Project Structure
 
 ```text

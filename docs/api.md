@@ -20,6 +20,7 @@ Expected HTTP and validation errors use one envelope:
 Regular HTTP errors use the status code as `code`. Deferred workflow endpoints
 return `501` with `code` set to `not_implemented`. ML upload validation can also
 return `unsupported_model_file`, `invalid_model_file`, or `model_file_too_large`.
+Billing can return `insufficient_credits`.
 
 ## Implemented Contracts
 
@@ -40,6 +41,7 @@ return `unsupported_model_file`, `invalid_model_file`, or `model_file_too_large`
 | Predictions | `POST /api/v1/predictions` | Implemented async task creation |
 | Billing | `GET /api/v1/billing/balance` | Implemented |
 | Billing | `GET /api/v1/billing/transactions` | Implemented ledger list |
+| Billing | `POST /api/v1/billing/adjustments` | Implemented admin adjustment |
 | Payments | `GET /api/v1/payments` | Implemented payment list |
 | Payments | `POST /api/v1/payments` | Contract only; processing follows in Step 10 |
 
@@ -67,3 +69,6 @@ Prediction execution is still deferred to Step 7.
 queued task, and returns immediately with the prediction task ID. A Celery worker
 loads the model, calls `predict(rows)`, and stores either
 `result_payload.predictions` or `error_message`.
+
+Prediction creation requires enough credits. Successful predictions debit the
+configured prediction price, while failed predictions do not debit credits.

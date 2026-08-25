@@ -39,5 +39,6 @@ The MVP prediction payload is:
 
 ## Billing
 
-Credit reservation and debit are intentionally deferred to the billing stage.
-This step focuses on the prediction lifecycle and worker execution.
+Prediction creation requires enough available credits before queueing. The
+worker debits the configured prediction price only after successful execution.
+Failed predictions do not debit credits.

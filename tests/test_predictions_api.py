@@ -8,14 +8,15 @@ import pytest
 from fastapi.testclient import TestClient
 from joblib import dump
 from sklearn.dummy import DummyRegressor
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.predictions.router as predictions_router
+from app.billing.service import credit_user_balance
 from app.core.config import Settings, get_settings
 from app.db import Base
-from app.db.models import MLModel
+from app.db.models import BillingTransaction, CreditBalance, MLModel
 from app.db.session import get_db_session
 from app.main import create_app
 from app.predictions.service import execute_prediction_task
@@ -119,6 +120,24 @@ def upload_model(client: TestClient, token: str, tmp_path: Path) -> int:
     return int(response.json()["id"])
 
 
+def grant_credits(
+    session_factory: sessionmaker[Session],
+    *,
+    user_id: int = 1,
+    amount_credits: int = 5,
+) -> None:
+    with session_factory() as session:
+        credit_user_balance(
+            session,
+            user_id=user_id,
+            amount_credits=amount_credits,
+            transaction_type="adjustment",
+            description="Test credits",
+            idempotency_key=f"test-credit:{user_id}:{amount_credits}",
+        )
+        session.commit()
+
+
 class FakeTask:
     def __init__(self) -> None:
         self.prediction_ids: list[int] = []
@@ -137,6 +156,7 @@ def test_create_prediction_enqueues_task_and_worker_saves_result(
     register_user(client)
     token = login_user(client)
     model_id = upload_model(client, token, tmp_path)
+    grant_credits(session_factory)
     fake_task = FakeTask()
     monkeypatch.setattr(predictions_router, "run_prediction_task", fake_task)
 
@@ -166,6 +186,19 @@ def test_create_prediction_enqueues_task_and_worker_saves_result(
     assert detail["error_message"] is None
     assert detail["started_at"] is not None
     assert detail["completed_at"] is not None
+
+    with session_factory() as session:
+        balance = session.scalar(select(CreditBalance).where(CreditBalance.user_id == 1))
+        assert balance is not None
+        assert balance.credits_available == 4
+        debit = session.scalar(
+            select(BillingTransaction).where(
+                BillingTransaction.prediction_task_id == payload["id"],
+                BillingTransaction.transaction_type == "prediction_debit",
+            ),
+        )
+        assert debit is not None
+        assert debit.amount_credits == 1
 
 
 def test_create_prediction_rejects_missing_rows(
@@ -223,6 +256,7 @@ def test_worker_marks_prediction_failed_when_model_file_is_missing(
     register_user(client)
     token = login_user(client)
     model_id = upload_model(client, token, tmp_path)
+    grant_credits(session_factory, amount_credits=1)
     fake_task = FakeTask()
     monkeypatch.setattr(predictions_router, "run_prediction_task", fake_task)
 
@@ -251,3 +285,15 @@ def test_worker_marks_prediction_failed_when_model_file_is_missing(
     assert detail["status"] == "failed"
     assert detail["result_payload"] is None
     assert detail["error_message"]
+
+    with session_factory() as session:
+        balance = session.scalar(select(CreditBalance).where(CreditBalance.user_id == 1))
+        assert balance is not None
+        assert balance.credits_available == 1
+        debit = session.scalar(
+            select(BillingTransaction).where(
+                BillingTransaction.prediction_task_id == prediction_id,
+                BillingTransaction.transaction_type == "prediction_debit",
+            ),
+        )
+        assert debit is None

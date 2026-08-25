@@ -8,6 +8,8 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.billing.service import debit_prediction_success
+from app.core.config import Settings, get_settings
 from app.db.models import PredictionTask
 from app.db.session import SessionLocal
 from app.ml.service import load_model_artifact
@@ -69,9 +71,11 @@ def _utc_now() -> datetime:
 def execute_prediction_task(
     prediction_id: int,
     session_factory: Callable[[], Session] = SessionLocal,
+    settings: Settings | None = None,
 ) -> dict[str, object]:
     """Execute a stored prediction task and persist its final status."""
 
+    resolved_settings = settings or get_settings()
     with session_factory() as session:
         prediction = session.get(PredictionTask, prediction_id)
         if prediction is None:
@@ -89,6 +93,12 @@ def execute_prediction_task(
             prediction.result_payload = {"predictions": make_json_compatible(raw_result)}
             prediction.error_message = None
             prediction.status = "succeeded"
+            debit_prediction_success(
+                session,
+                user_id=prediction.user_id,
+                prediction_task_id=prediction.id,
+                amount_credits=resolved_settings.prediction_price_credits,
+            )
         except Exception as exc:  # noqa: BLE001
             prediction.result_payload = None
             prediction.error_message = str(exc)
