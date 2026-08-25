@@ -17,6 +17,7 @@ class PredictionRead(BaseModel):
 
     id: int
     model_id: int
+    celery_task_id: str | None
     status: str
     input_payload: dict[str, object] | None
     result_payload: dict[str, object] | None

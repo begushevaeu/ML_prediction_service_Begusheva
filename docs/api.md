@@ -37,7 +37,7 @@ return `unsupported_model_file`, `invalid_model_file`, or `model_file_too_large`
 | Models | `POST /api/v1/models` | Implemented multipart model upload |
 | Predictions | `GET /api/v1/predictions` | Implemented task list |
 | Predictions | `GET /api/v1/predictions/{prediction_id}` | Implemented task lookup |
-| Predictions | `POST /api/v1/predictions` | Contract only; execution follows in Step 7 |
+| Predictions | `POST /api/v1/predictions` | Implemented async task creation |
 | Billing | `GET /api/v1/billing/balance` | Implemented |
 | Billing | `GET /api/v1/billing/transactions` | Implemented ledger list |
 | Payments | `GET /api/v1/payments` | Implemented payment list |
@@ -60,3 +60,10 @@ authentication and only return rows owned by the current user.
 The MVP validates trusted Scikit-learn/joblib/pickle artifacts by loading the
 file and checking that the resulting object has a callable `predict` method.
 Prediction execution is still deferred to Step 7.
+
+## Prediction Execution
+
+`POST /api/v1/predictions` accepts `model_id` and `input_payload.rows`, stores a
+queued task, and returns immediately with the prediction task ID. A Celery worker
+loads the model, calls `predict(rows)`, and stores either
+`result_payload.predictions` or `error_message`.

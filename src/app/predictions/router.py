@@ -6,9 +6,10 @@ from fastapi import APIRouter, HTTPException, Path, status
 from sqlalchemy import select
 
 from app.auth.dependencies import CurrentUser, DbSession
-from app.core.errors import not_implemented_error
-from app.db.models import PredictionTask
+from app.db.models import MLModel, PredictionTask
 from app.predictions.schemas import PredictionCreate, PredictionListResponse, PredictionRead
+from app.predictions.service import validate_prediction_input_payload
+from app.predictions.tasks import run_prediction_task
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
@@ -19,6 +20,7 @@ def prediction_to_read(prediction: PredictionTask) -> PredictionRead:
     return PredictionRead(
         id=prediction.id,
         model_id=prediction.model_id,
+        celery_task_id=prediction.celery_task_id,
         status=prediction.status,
         input_payload=prediction.input_payload,
         result_payload=prediction.result_payload,
@@ -79,13 +81,46 @@ def get_prediction(
 
 @router.post(
     "",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    response_model=PredictionRead,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Create a prediction task",
 )
-def create_prediction(payload: PredictionCreate, current_user: CurrentUser) -> None:
-    """Validate the prediction request contract before execution is implemented."""
+def create_prediction(
+    payload: PredictionCreate,
+    current_user: CurrentUser,
+    session: DbSession,
+) -> PredictionRead:
+    """Create a prediction task and enqueue asynchronous execution."""
 
-    raise not_implemented_error("Prediction execution is implemented in Step 7.")
+    model = session.scalar(
+        select(MLModel).where(
+            MLModel.id == payload.model_id,
+            MLModel.owner_id == current_user.id,
+        ),
+    )
+    if model is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found",
+        )
+
+    validate_prediction_input_payload(payload.input_payload)
+    prediction = PredictionTask(
+        user_id=current_user.id,
+        model_id=model.id,
+        status="queued",
+        input_payload=payload.input_payload,
+    )
+    session.add(prediction)
+    session.commit()
+    session.refresh(prediction)
+
+    async_result = run_prediction_task.delay(prediction.id)
+    prediction.celery_task_id = async_result.id
+    session.commit()
+    session.refresh(prediction)
+
+    return prediction_to_read(prediction)
 
 
 __all__ = ["router"]

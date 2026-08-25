@@ -13,7 +13,7 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
         "ml_prediction_service",
         broker=resolved_settings.redis_url,
         backend=resolved_settings.redis_url,
-        include=["app.worker"],
+        include=["app.worker", "app.predictions.tasks"],
     )
     celery_app.conf.update(
         accept_content=["json"],

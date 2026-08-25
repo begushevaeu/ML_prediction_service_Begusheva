@@ -16,6 +16,10 @@ VALIDATION_ERROR_STATUS_CODE = 422
 CONTENT_TOO_LARGE_STATUS_CODE = 413
 
 
+class ModelArtifactError(ValueError):
+    """Raised when a stored model artifact cannot be used for prediction."""
+
+
 def normalize_model_name(value: str) -> str:
     """Normalize a user-visible model name."""
 
@@ -133,13 +137,18 @@ def _load_model(path: Path) -> Any:
         with path.open("rb") as model_file:
             return pickle.load(model_file)
     except Exception as exc:
-        raise HTTPException(
-            status_code=VALIDATION_ERROR_STATUS_CODE,
-            detail={
-                "code": "invalid_model_file",
-                "message": "Model file could not be loaded",
-            },
-        ) from (joblib_error or exc)
+        raise ModelArtifactError("Model file could not be loaded") from (joblib_error or exc)
+
+
+def load_model_artifact(path: Path) -> Any:
+    """Load a stored model artifact and ensure it exposes predict."""
+
+    model = _load_model(path)
+    predict = getattr(model, "predict", None)
+    if not callable(predict):
+        raise ModelArtifactError("Model object must define a callable predict method")
+
+    return model
 
 
 def validate_model_artifact(
@@ -147,16 +156,16 @@ def validate_model_artifact(
 ) -> dict[str, Any]:
     """Load a model artifact and return technical metadata."""
 
-    model = _load_model(path)
-    predict = getattr(model, "predict", None)
-    if not callable(predict):
+    try:
+        model = load_model_artifact(path)
+    except ModelArtifactError as exc:
         raise HTTPException(
             status_code=VALIDATION_ERROR_STATUS_CODE,
             detail={
                 "code": "invalid_model_file",
-                "message": "Model object must define a callable predict method",
+                "message": str(exc),
             },
-        )
+        ) from exc
 
     model_type = f"{model.__class__.__module__}.{model.__class__.__name__}"
     return {
@@ -168,6 +177,8 @@ def validate_model_artifact(
 
 __all__ = [
     "ALLOWED_MODEL_EXTENSIONS",
+    "ModelArtifactError",
+    "load_model_artifact",
     "normalize_framework",
     "normalize_model_name",
     "parse_metadata_json",

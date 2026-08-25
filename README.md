@@ -141,6 +141,14 @@ the `ml_models` table.
 
 The model upload flow is documented in `docs/ml-models.md`.
 
+## Predictions
+
+Authenticated users can create asynchronous prediction tasks with
+`POST /api/v1/predictions`. The API returns a queued task immediately, and the
+worker stores either `result_payload.predictions` or an execution error.
+
+The prediction lifecycle is documented in `docs/predictions.md`.
+
 ## Project Structure
 
 ```text
