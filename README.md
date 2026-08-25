@@ -9,7 +9,8 @@ analytics dashboard, monitoring, Docker Compose, and tests.
 The repository is being prepared stage by stage on `develop`. The current public
 foundation contains the application package, configuration entry points, health
 endpoint, database schema, authentication flow, base REST API contracts, quality
-commands, and architecture documentation.
+commands, model upload, asynchronous prediction execution, credit billing, mock
+payments, and architecture documentation.
 
 ## Local Setup
 
@@ -157,6 +158,14 @@ predictions debit the configured prediction price. Failed predictions do not
 debit credits.
 
 The billing rules are documented in `docs/billing.md`.
+
+## Payments
+
+Authenticated users can create mock payments with `POST /api/v1/payments` and
+confirm them with `POST /api/v1/payments/{payment_id}/confirm`. Confirmation
+adds credits through the billing ledger and is safe to repeat.
+
+The mock payment flow is documented in `docs/payments.md`.
 
 ## Project Structure
 

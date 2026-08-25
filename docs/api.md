@@ -43,7 +43,9 @@ Billing can return `insufficient_credits`.
 | Billing | `GET /api/v1/billing/transactions` | Implemented ledger list |
 | Billing | `POST /api/v1/billing/adjustments` | Implemented admin adjustment |
 | Payments | `GET /api/v1/payments` | Implemented payment list |
-| Payments | `POST /api/v1/payments` | Contract only; processing follows in Step 10 |
+| Payments | `GET /api/v1/payments/{payment_id}` | Implemented payment lookup |
+| Payments | `POST /api/v1/payments` | Implemented mock payment creation |
+| Payments | `POST /api/v1/payments/{payment_id}/confirm` | Implemented mock confirmation |
 
 All model, prediction, billing, and payment endpoints are protected by bearer
 authentication and only return rows owned by the current user.
@@ -61,7 +63,7 @@ authentication and only return rows owned by the current user.
 
 The MVP validates trusted Scikit-learn/joblib/pickle artifacts by loading the
 file and checking that the resulting object has a callable `predict` method.
-Prediction execution is still deferred to Step 7.
+Prediction execution runs asynchronously through the worker.
 
 ## Prediction Execution
 
@@ -72,3 +74,10 @@ loads the model, calls `predict(rows)`, and stores either
 
 Prediction creation requires enough credits. Successful predictions debit the
 configured prediction price, while failed predictions do not debit credits.
+
+## Payments
+
+`POST /api/v1/payments` creates a pending mock payment. `POST
+/api/v1/payments/{payment_id}/confirm` marks it as succeeded and adds the
+purchased credits to the user's balance through a `payment_credit` ledger row.
+Repeated confirmation is safe and does not credit the balance twice.

@@ -98,6 +98,8 @@ def test_openapi_exposes_base_api_contracts(client: TestClient) -> None:
     assert "/api/v1/billing/balance" in paths
     assert "/api/v1/billing/transactions" in paths
     assert "/api/v1/payments" in paths
+    assert "/api/v1/payments/{payment_id}" in paths
+    assert "/api/v1/payments/{payment_id}/confirm" in paths
 
 
 def test_empty_domain_lists_and_balance_are_available(client: TestClient) -> None:
@@ -164,7 +166,7 @@ def test_model_lookup_returns_only_current_users_model(
     assert other_response.json()["error"]["code"] == "404"
 
 
-def test_deferred_create_endpoints_validate_and_return_501(client: TestClient) -> None:
+def test_prediction_validation_and_payment_create_contracts(client: TestClient) -> None:
     register_user(client)
     token = login_user(client)
     headers = auth_headers(token)
@@ -182,8 +184,9 @@ def test_deferred_create_endpoints_validate_and_return_501(client: TestClient) -
         json={"credits_purchased": 10, "amount_cents": 500, "currency": "usd"},
         headers=headers,
     )
-    assert payment_response.status_code == 501
-    assert payment_response.json()["error"]["code"] == "not_implemented"
+    assert payment_response.status_code == 201
+    assert payment_response.json()["status"] == "pending"
+    assert payment_response.json()["currency"] == "USD"
 
 
 def test_unified_error_shape_for_auth_and_permissions(client: TestClient) -> None:

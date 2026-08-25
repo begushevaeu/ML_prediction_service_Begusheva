@@ -23,7 +23,7 @@ POST /api/v1/billing/adjustments
 
 The endpoint supports both `credit` and `debit` directions. It is intended as
 the simplest internal operation for local MVP testing and future support tasks.
-Customer-facing top-ups are deferred to the Payments step.
+Customer-facing top-ups are handled by the mock Payments flow.
 
 ## Prediction Billing
 
@@ -44,3 +44,9 @@ If a user has no credits, the API returns `402` with:
   }
 }
 ```
+
+## Payment Credits
+
+Successful mock payment confirmation creates one `payment_credit` transaction
+linked to the payment row. Repeated confirmation reuses the same idempotency key
+and does not increase the balance twice.
