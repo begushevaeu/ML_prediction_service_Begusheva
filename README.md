@@ -77,6 +77,22 @@ Stop services:
 docker compose down
 ```
 
+## Database Migrations
+
+Apply the current database schema:
+
+```powershell
+alembic upgrade head
+```
+
+Create future schema revisions from SQLAlchemy models:
+
+```powershell
+alembic revision --autogenerate -m "describe change"
+```
+
+The schema design is documented in `docs/database.md`.
+
 ## Project Structure
 
 ```text
@@ -94,6 +110,7 @@ docker compose down
 │   └── main.py                 Future application entry point
 ├── tests/                      Future unit and integration tests
 ├── migrations/                 Future database migrations
+├── alembic.ini                 Alembic configuration
 ├── configs/                    Configuration templates
 ├── docker/                     Docker-related files
 ├── docker-compose.yml          Local infrastructure stack

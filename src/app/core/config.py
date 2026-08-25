@@ -13,6 +13,14 @@ def _read_bool(name: str, default: bool) -> bool:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _read_int(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    return int(raw_value)
+
+
 @dataclass(frozen=True)
 class Settings:
     """Runtime settings loaded from environment variables."""
@@ -24,6 +32,7 @@ class Settings:
     database_url: str = "postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service"
     redis_url: str = "redis://redis:6379/0"
     model_storage_path: str = "/var/lib/ml_prediction_service/models"
+    prediction_price_credits: int = 1
 
 
 @lru_cache
@@ -38,4 +47,8 @@ def get_settings() -> Settings:
         database_url=os.getenv("DATABASE_URL", Settings.database_url),
         redis_url=os.getenv("REDIS_URL", Settings.redis_url),
         model_storage_path=os.getenv("MODEL_STORAGE_PATH", Settings.model_storage_path),
+        prediction_price_credits=_read_int(
+            "PREDICTION_PRICE_CREDITS",
+            Settings.prediction_price_credits,
+        ),
     )

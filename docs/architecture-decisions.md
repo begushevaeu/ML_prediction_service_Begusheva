@@ -12,7 +12,10 @@ are treated as agreed decisions until the owner explicitly approves a change.
 | Model storage | Local Docker volume for MVP |
 | Billing | Credit balance |
 | Marketing mechanic | Promo codes |
+| Promo credits | Fixed credits added to the common user balance |
+| Prediction price | Fixed global price, `1` credit per successful prediction |
 | Payments | Mock/sandbox payments for MVP |
+| Credit packages | Deferred; payments store purchased credits directly for now |
 | Roles | user and admin |
 | User analytics dashboard | Streamlit |
 | Containers | Docker and Docker Compose |
@@ -25,9 +28,8 @@ are treated as agreed decisions until the owner explicitly approves a change.
 The following items are intentionally deferred until the stage where they become
 implementation blockers:
 
-- prediction price;
 - credit packages;
-- exact promo code rules;
+- advanced promo code rules;
 - ML input contract;
 - model upload limits;
 - prediction result storage format;
