@@ -13,6 +13,7 @@ This page is the public documentation entry point for ML Prediction Service.
 | [Security](security.md) | Security guardrails, residual risks, and hardening notes |
 | [Testing](testing.md) | Test strategy, coverage threshold, and current suite result |
 | [Business Plan](business-plan.md) | Target audience, value proposition, monetization, and basic economics |
+| [Final Acceptance](final-acceptance.md) | Final checklist, runtime verification, and quality results |
 
 ## Domain Guides
 

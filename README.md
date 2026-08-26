@@ -241,6 +241,12 @@ implemented marketing mechanic.
 
 The short business plan is documented in `docs/business-plan.md`.
 
+## Final Acceptance
+
+The final acceptance report is documented in `docs/final-acceptance.md`. It
+records the Docker Compose runtime check, live API smoke test, monitoring check,
+test suite result, coverage result, and known MVP limitations.
+
 ## Documentation
 
 The main public documentation entry point is `docs/index.md`. It links the
