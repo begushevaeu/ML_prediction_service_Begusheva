@@ -4,6 +4,10 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
+ALLOWED_JWT_ALGORITHMS = {"HS256"}
+DEFAULT_JWT_SECRET_KEY = "change-me-to-a-long-random-secret-key"
+LOCAL_APP_ENVS = {"dev", "development", "local", "test"}
+
 
 def _read_bool(name: str, default: bool) -> bool:
     raw_value = os.getenv(name)
@@ -31,12 +35,39 @@ class Settings:
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service"
     redis_url: str = "redis://redis:6379/0"
-    jwt_secret_key: str = "change-me-to-a-long-random-secret-key"
+    jwt_secret_key: str = DEFAULT_JWT_SECRET_KEY
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     model_storage_path: str = "/var/lib/ml_prediction_service/models"
     max_model_upload_size_bytes: int = 10 * 1024 * 1024
     prediction_price_credits: int = 1
+
+
+def validate_security_settings(settings: Settings) -> None:
+    """Fail fast when runtime settings are unsafe outside local/test use."""
+
+    if settings.jwt_algorithm not in ALLOWED_JWT_ALGORITHMS:
+        raise RuntimeError("JWT_ALGORITHM must be HS256")
+
+    if settings.access_token_expire_minutes <= 0:
+        raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be positive")
+
+    if settings.max_model_upload_size_bytes <= 0:
+        raise RuntimeError("MAX_MODEL_UPLOAD_SIZE_BYTES must be positive")
+
+    if settings.prediction_price_credits <= 0:
+        raise RuntimeError("PREDICTION_PRICE_CREDITS must be positive")
+
+    if settings.app_env.strip().lower() in LOCAL_APP_ENVS:
+        return
+
+    if settings.app_debug:
+        raise RuntimeError("APP_DEBUG must be disabled outside local/test environments")
+
+    if settings.jwt_secret_key == DEFAULT_JWT_SECRET_KEY or len(settings.jwt_secret_key) < 32:
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be changed to a random secret with at least 32 characters",
+        )
 
 
 @lru_cache
@@ -66,3 +97,13 @@ def get_settings() -> Settings:
             Settings.prediction_price_credits,
         ),
     )
+
+
+__all__ = [
+    "ALLOWED_JWT_ALGORITHMS",
+    "DEFAULT_JWT_SECRET_KEY",
+    "LOCAL_APP_ENVS",
+    "Settings",
+    "get_settings",
+    "validate_security_settings",
+]

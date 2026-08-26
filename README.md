@@ -11,8 +11,8 @@ foundation contains the application package, configuration entry points, health
 endpoint, database schema, authentication flow, base REST API contracts, quality
 commands, model upload, asynchronous prediction execution, credit billing, mock
 payments, promo codes, analytics dashboard, monitoring, and architecture
-documentation. The test suite now has an explicit coverage gate for the project
-requirement.
+documentation. The test suite has an explicit coverage gate, and the app now
+fails fast on unsafe non-local security settings.
 
 ## Local Setup
 
@@ -217,6 +217,18 @@ Coverage is configured in `pyproject.toml` with a minimum total threshold of
 85% total coverage.
 
 The testing strategy is documented in `docs/testing.md`.
+
+## Security
+
+The application validates sensitive runtime settings on startup. Non-local
+environments must disable debug mode and provide a non-placeholder JWT secret
+with at least 32 characters. JWT algorithm selection is restricted to `HS256`.
+
+Security hardening covers malformed password hashes, expired tokens, inactive
+users, model upload filename sanitization, hidden storage paths, and ownership
+boundaries across user data.
+
+The security checklist and residual risks are documented in `docs/security.md`.
 
 ## Project Structure
 

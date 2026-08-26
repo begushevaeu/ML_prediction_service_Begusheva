@@ -1,6 +1,7 @@
 """Password hashing helpers."""
 
 import base64
+import binascii
 import hashlib
 import hmac
 import secrets
@@ -34,12 +35,20 @@ def verify_password(password: str, password_hash: str) -> bool:
     if hash_name != PASSWORD_HASH_NAME:
         return False
 
-    expected_digest = base64.b64decode(encoded_digest.encode("ascii"))
+    try:
+        iteration_count = int(iterations)
+        expected_digest = base64.b64decode(encoded_digest.encode("ascii"), validate=True)
+    except (ValueError, binascii.Error):
+        return False
+
+    if iteration_count <= 0:
+        return False
+
     actual_digest = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
         salt.encode("utf-8"),
-        int(iterations),
+        iteration_count,
     )
     return hmac.compare_digest(actual_digest, expected_digest)
 

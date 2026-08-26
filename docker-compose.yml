@@ -6,7 +6,7 @@ services:
     environment:
       APP_NAME: "ML Prediction Service"
       APP_ENV: local
-      APP_DEBUG: "true"
+      APP_DEBUG: "false"
       API_V1_PREFIX: /api/v1
       DATABASE_URL: postgresql+psycopg://ml_user:change-me@postgres:5432/ml_prediction_service
       REDIS_URL: redis://redis:6379/0

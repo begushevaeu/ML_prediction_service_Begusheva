@@ -60,3 +60,6 @@ highest-risk seams across already implemented modules:
 - Validation and missing-route responses use the same error envelope shape.
 - A second user cannot see or fetch another user's domain data.
 - Billing idempotency keys prevent duplicate credit/debit ledger rows.
+
+The later Security stage extends the suite to 65 tests while keeping total
+coverage at 85%.

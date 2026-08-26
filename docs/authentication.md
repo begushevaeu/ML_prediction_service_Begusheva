@@ -33,3 +33,6 @@ are signed with `JWT_SECRET_KEY` and expire after
 
 For local development, `.env.example` uses a placeholder secret with a safe test
 length. Real deployment settings must provide a unique random `JWT_SECRET_KEY`.
+Outside local/test environments, the application fails startup if the default
+secret is still in use, if debug mode is enabled, or if an unsupported JWT
+algorithm is configured.

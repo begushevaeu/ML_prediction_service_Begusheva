@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
 from app.api.schemas import ErrorResponse
-from app.core.config import Settings, get_settings
+from app.core.config import Settings, get_settings, validate_security_settings
 from app.core.errors import http_exception_handler, validation_exception_handler
 from app.monitoring.metrics import record_http_request
 from app.monitoring.router import router as monitoring_router
@@ -18,6 +18,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Create and configure the FastAPI application."""
 
     resolved_settings = settings or get_settings()
+    validate_security_settings(resolved_settings)
     application = FastAPI(
         title=resolved_settings.app_name,
         debug=resolved_settings.app_debug,
