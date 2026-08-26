@@ -2,7 +2,7 @@
 
 import json
 import pickle
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import uuid4
 
@@ -67,8 +67,14 @@ def parse_metadata_json(value: str | None) -> dict[str, Any] | None:
     return parsed
 
 
+def sanitize_upload_filename(value: str | None) -> str:
+    """Return the client filename without POSIX or Windows path segments."""
+
+    return PurePosixPath((value or "").replace("\\", "/")).name
+
+
 def _suffix_for_upload(upload: UploadFile) -> str:
-    filename = Path(upload.filename or "").name
+    filename = sanitize_upload_filename(upload.filename)
     suffix = Path(filename).suffix.lower()
     if suffix not in ALLOWED_MODEL_EXTENSIONS:
         raise HTTPException(
@@ -169,7 +175,7 @@ def validate_model_artifact(
 
     model_type = f"{model.__class__.__module__}.{model.__class__.__name__}"
     return {
-        "uploaded_filename": Path(original_filename or "").name or None,
+        "uploaded_filename": sanitize_upload_filename(original_filename) or None,
         "file_size_bytes": file_size_bytes,
         "model_type": model_type,
     }
@@ -182,6 +188,7 @@ __all__ = [
     "normalize_framework",
     "normalize_model_name",
     "parse_metadata_json",
+    "sanitize_upload_filename",
     "save_model_upload",
     "validate_model_artifact",
 ]

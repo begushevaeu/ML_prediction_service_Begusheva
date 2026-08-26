@@ -56,7 +56,8 @@ Current guardrails:
 - only `.joblib`, `.pkl`, and `.pickle` extensions are accepted;
 - upload size is limited by `MAX_MODEL_UPLOAD_SIZE_BYTES`;
 - stored filenames are generated server-side;
-- original filenames are sanitized before metadata is returned;
+- original filenames are sanitized across POSIX and Windows-style path
+  separators before metadata is returned;
 - internal storage paths are not returned by public API responses;
 - invalid artifacts are removed from storage.
 

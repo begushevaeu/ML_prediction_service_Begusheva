@@ -19,6 +19,7 @@ from app.db import Base
 from app.db.models import CreditBalance, Role, User
 from app.db.session import get_db_session
 from app.main import create_app
+from app.ml.service import sanitize_upload_filename
 
 TEST_SECRET = "test-secret-with-at-least-thirty-two-bytes"
 PRODUCTION_SECRET = "production-secret-with-at-least-thirty-two-bytes"
@@ -163,6 +164,14 @@ def test_verify_password_rejects_malformed_hashes_without_error() -> None:
 
     for password_hash in malformed_hashes:
         assert not verify_password("strong-password", password_hash)
+
+
+def test_upload_filename_sanitizer_handles_windows_and_posix_paths() -> None:
+    assert sanitize_upload_filename("../secret/tiny.pkl") == "tiny.pkl"
+    assert sanitize_upload_filename("..\\secret\\tiny.pkl") == "tiny.pkl"
+    assert sanitize_upload_filename("tiny.pkl") == "tiny.pkl"
+    assert sanitize_upload_filename("") == ""
+    assert sanitize_upload_filename(None) == ""
 
 
 def test_model_upload_sanitizes_filename_and_hides_storage_path(
