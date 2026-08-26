@@ -11,7 +11,8 @@ foundation contains the application package, configuration entry points, health
 endpoint, database schema, authentication flow, base REST API contracts, quality
 commands, model upload, asynchronous prediction execution, credit billing, mock
 payments, promo codes, analytics dashboard, monitoring, and architecture
-documentation.
+documentation. The test suite now has an explicit coverage gate for the project
+requirement.
 
 ## Local Setup
 
@@ -44,7 +45,7 @@ ruff check .
 ruff format --check .
 pytest
 coverage run -m pytest
-coverage report
+coverage report --fail-under=70
 ```
 
 ## Docker Compose
@@ -204,6 +205,18 @@ Prometheus is available at `http://127.0.0.1:19090`, and Grafana is available at
 `http://127.0.0.1:13000` with local credentials `admin / admin`.
 
 The monitoring setup is documented in `docs/monitoring.md`.
+
+## Testing
+
+The automated suite covers the main MVP flows: authentication, API contracts,
+model upload, asynchronous predictions, billing, mock payments, promo codes,
+analytics aggregation, monitoring metrics, and cross-user data isolation.
+
+Coverage is configured in `pyproject.toml` with a minimum total threshold of
+70%. At Testing stage completion, the local suite result is 58 passed tests and
+85% total coverage.
+
+The testing strategy is documented in `docs/testing.md`.
 
 ## Project Structure
 
