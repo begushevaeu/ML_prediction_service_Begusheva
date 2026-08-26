@@ -12,6 +12,7 @@ This page is the public documentation entry point for ML Prediction Service.
 | [Infrastructure](infrastructure.md) | Docker Compose services, ports, volumes, and local commands |
 | [Security](security.md) | Security guardrails, residual risks, and hardening notes |
 | [Testing](testing.md) | Test strategy, coverage threshold, and current suite result |
+| [Business Plan](business-plan.md) | Target audience, value proposition, monetization, and basic economics |
 
 ## Domain Guides
 

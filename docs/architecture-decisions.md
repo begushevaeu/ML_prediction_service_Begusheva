@@ -22,6 +22,7 @@ are treated as agreed decisions until the owner explicitly approves a change.
 | Containers | Docker and Docker Compose |
 | Monitoring | Prometheus and Grafana |
 | Testing target | Unit and integration tests, coverage greater than 70% |
+| Business model | Prepaid credits with `1` credit per successful prediction |
 | Project target | Production-like educational MVP |
 
 ## Decisions Deferred

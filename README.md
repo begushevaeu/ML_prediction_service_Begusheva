@@ -232,6 +232,15 @@ boundaries across user data.
 
 The security checklist and residual risks are documented in `docs/security.md`.
 
+## Business Plan
+
+The project uses prepaid credits as the monetization model. One successful
+prediction costs `1` credit; failed predictions are not charged. Mock payments
+represent balance top-ups in the MVP, and fixed-credit promo codes provide the
+implemented marketing mechanic.
+
+The short business plan is documented in `docs/business-plan.md`.
+
 ## Documentation
 
 The main public documentation entry point is `docs/index.md`. It links the
