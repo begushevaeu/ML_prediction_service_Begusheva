@@ -15,7 +15,7 @@ The application package is located in `src/app`.
 | `app.ml` | Scikit-learn model management and prediction helpers |
 | `app.billing` | Credit balance and transaction logic |
 | `app.payments` | Mock/sandbox payment flow |
-| `app.dashboard` | Future Streamlit analytics dashboard |
+| `app.dashboard` | Streamlit analytics dashboard |
 | `app.db` | Database sessions, models, and migration integration |
 | `app.core` | Settings, errors, and shared application utilities |
 
@@ -51,7 +51,7 @@ ruff check .
 ruff format --check .
 pytest
 coverage run -m pytest
-coverage report
+coverage report --fail-under=70
 ```
 
 GitHub Actions runs the same foundation checks on pushes and pull requests to

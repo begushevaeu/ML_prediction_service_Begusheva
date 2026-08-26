@@ -29,10 +29,6 @@ are treated as agreed decisions until the owner explicitly approves a change.
 The following items are intentionally deferred until the stage where they become
 implementation blockers:
 
-- credit packages;
-- advanced promo code rules;
-- ML input contract;
-- model upload limits;
 - prediction result storage format;
 - admin capabilities;
 - CI/CD scope;

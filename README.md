@@ -14,6 +14,8 @@ payments, promo codes, analytics dashboard, monitoring, and architecture
 documentation. The test suite has an explicit coverage gate, and the app now
 fails fast on unsafe non-local security settings.
 
+The public documentation starts at `docs/index.md`.
+
 ## Local Setup
 
 Create and activate a virtual environment, then install the project with
@@ -100,7 +102,8 @@ Create future schema revisions from SQLAlchemy models:
 alembic revision --autogenerate -m "describe change"
 ```
 
-The schema design is documented in `docs/database.md`.
+The schema design is documented in `docs/database.md`, with the full ERD in
+`docs/erd.md`.
 
 ## Authentication
 
@@ -131,9 +134,8 @@ Swagger/OpenAPI is available at:
 http://127.0.0.1:18000/docs
 ```
 
-The base API surface is defined for system health, auth, users, models,
-predictions, billing, and payments. Some workflow endpoints intentionally return
-`501 not_implemented` until their implementation steps arrive.
+The API surface is implemented for system health, auth, users, models,
+predictions, billing, payments, and promo codes.
 
 The API contract and error format are documented in `docs/api.md`.
 
@@ -229,6 +231,12 @@ users, model upload filename sanitization, hidden storage paths, and ownership
 boundaries across user data.
 
 The security checklist and residual risks are documented in `docs/security.md`.
+
+## Documentation
+
+The main public documentation entry point is `docs/index.md`. It links the
+architecture diagram, ERD, API contracts, infrastructure, security, testing, and
+domain-specific guides.
 
 ## Project Structure
 

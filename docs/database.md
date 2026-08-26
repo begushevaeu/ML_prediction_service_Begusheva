@@ -32,6 +32,9 @@ minor currency units with `amount_cents`, avoiding floating point arithmetic.
 
 ## ERD
 
+The full entity relationship diagram with table fields is maintained in
+[ERD](erd.md). The compact relationship view is:
+
 ```mermaid
 erDiagram
   roles ||--o{ users : assigns
