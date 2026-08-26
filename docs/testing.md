@@ -21,10 +21,10 @@ coverage report --fail-under=70
 
 ## Current Result
 
-At Testing stage completion, the local suite result is:
+The current local suite result is:
 
 ```text
-58 passed, 8 warnings
+66 passed, 8 warnings
 TOTAL coverage: 85%
 ```
 
@@ -61,5 +61,5 @@ highest-risk seams across already implemented modules:
 - A second user cannot see or fetch another user's domain data.
 - Billing idempotency keys prevent duplicate credit/debit ledger rows.
 
-The later Security stage extends the suite to 65 tests while keeping total
-coverage at 85%.
+The later Security and final CI hardening stages extend the suite to 66 tests
+while keeping total coverage at 85%.

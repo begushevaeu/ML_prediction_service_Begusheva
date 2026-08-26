@@ -215,8 +215,7 @@ model upload, asynchronous predictions, billing, mock payments, promo codes,
 analytics aggregation, monitoring metrics, and cross-user data isolation.
 
 Coverage is configured in `pyproject.toml` with a minimum total threshold of
-70%. At Testing stage completion, the local suite result is 58 passed tests and
-85% total coverage.
+70%. The current local suite result is 66 passed tests and 85% total coverage.
 
 The testing strategy is documented in `docs/testing.md`.
 

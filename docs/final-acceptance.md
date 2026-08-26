@@ -17,7 +17,7 @@ Date: 2026-08-26
 | Swagger/OpenAPI is available | Passed | `GET /openapi.json` and Swagger UI are available on the backend |
 | Project runs through Docker Compose | Passed | Backend, worker, dashboard, PostgreSQL, Redis, Prometheus, and Grafana are running |
 | Prometheus/Grafana are configured | Passed | `/metrics` is available, Prometheus query succeeds, and Grafana health is OK |
-| Test coverage is greater than 70% | Passed | 65 tests passed; total coverage is 85% |
+| Test coverage is greater than 70% | Passed | 66 tests passed; total coverage is 85% |
 | Short business plan exists | Passed | `docs/business-plan.md` is complete and linked from the docs index |
 
 ## Runtime Verification
@@ -76,10 +76,10 @@ ruff format --check .
 89 files already formatted
 
 pytest
-65 passed, 8 warnings
+66 passed, 8 warnings
 
 coverage run -m pytest
-65 passed, 8 warnings
+66 passed, 8 warnings
 
 coverage report --fail-under=70
 TOTAL coverage: 85%
@@ -124,5 +124,5 @@ acceptance.
 
 ## Final State
 
-The MVP is ready for owner review. Nothing has been pushed or merged to `main`
-as part of this acceptance step.
+The MVP is complete for the educational acceptance scope. The final CI fix was
+pushed to both `develop` and `main`, and GitHub Actions passed on both branches.
