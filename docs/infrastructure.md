@@ -11,6 +11,8 @@ billing, payments, and analytics behavior are implemented in later stages.
 | `backend` | local `Dockerfile`, Alembic + Uvicorn | Applies migrations, then runs the FastAPI app on host port `18000` |
 | `worker` | local `Dockerfile`, Celery | Starts the asynchronous worker process |
 | `dashboard` | local `Dockerfile`, Streamlit | Starts the dashboard service on host port `18501` |
+| `prometheus` | `prom/prometheus:v2.55.1` | Scrapes backend metrics on host port `19090` |
+| `grafana` | `grafana/grafana:11.3.1` | Shows provisioned monitoring dashboards on host port `13000` |
 | `postgres` | `postgres:16-alpine` | Provides PostgreSQL on host port `15432` |
 | `redis` | `redis:7-alpine` | Provides Redis on host port `16379` |
 
@@ -18,6 +20,8 @@ billing, payments, and analytics behavior are implemented in later stages.
 
 | Volume | Purpose |
 | --- | --- |
+| `grafana_data` | Grafana local data directory |
+| `prometheus_data` | Prometheus local time-series data |
 | `postgres_data` | PostgreSQL data directory |
 | `model_storage` | Local model storage path for the MVP |
 
@@ -28,7 +32,7 @@ Secrets in `.env.example` are placeholders and must not be reused for a real
 deployment.
 
 Published host ports can be overridden with `BACKEND_PORT`, `DASHBOARD_PORT`,
-`POSTGRES_PORT`, and `REDIS_PORT`.
+`PROMETHEUS_PORT`, `GRAFANA_PORT`, `POSTGRES_PORT`, and `REDIS_PORT`.
 
 ## Commands
 
@@ -54,6 +58,8 @@ docker compose up --build
 - Redis uses `redis-cli ping`.
 - Backend calls `GET /api/v1/health` locally.
 - Dashboard depends on the healthy backend.
+- Prometheus scrapes `GET /metrics` from the backend.
+- Grafana uses provisioned Prometheus datasource and dashboard files.
 
 Worker process health will become richer when real asynchronous tasks are added
 in the prediction stage.

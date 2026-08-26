@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: ML Prediction Service
+    orgId: 1
+    folder: ML Prediction Service
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards

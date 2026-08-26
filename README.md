@@ -10,7 +10,8 @@ The repository is being prepared stage by stage on `develop`. The current public
 foundation contains the application package, configuration entry points, health
 endpoint, database schema, authentication flow, base REST API contracts, quality
 commands, model upload, asynchronous prediction execution, credit billing, mock
-payments, promo codes, analytics dashboard, and architecture documentation.
+payments, promo codes, analytics dashboard, monitoring, and architecture
+documentation.
 
 ## Local Setup
 
@@ -69,6 +70,8 @@ Services:
 | --- | --- | --- |
 | `backend` | `http://127.0.0.1:18000` | FastAPI application |
 | `dashboard` | `http://127.0.0.1:18501` | Streamlit dashboard service |
+| `prometheus` | `http://127.0.0.1:19090` | Prometheus metrics server |
+| `grafana` | `http://127.0.0.1:13000` | Grafana monitoring dashboard |
 | `postgres` | `127.0.0.1:15432` | PostgreSQL database |
 | `redis` | `127.0.0.1:16379` | Redis broker/result backend |
 | `worker` | internal | Celery worker |
@@ -189,6 +192,19 @@ same API login flow as Swagger.
 
 The dashboard flow is documented in `docs/dashboard.md`.
 
+## Monitoring
+
+The backend exposes Prometheus-compatible metrics at:
+
+```text
+http://127.0.0.1:18000/metrics
+```
+
+Prometheus is available at `http://127.0.0.1:19090`, and Grafana is available at
+`http://127.0.0.1:13000` with local credentials `admin / admin`.
+
+The monitoring setup is documented in `docs/monitoring.md`.
+
 ## Project Structure
 
 ```text
@@ -202,6 +218,7 @@ The dashboard flow is documented in `docs/dashboard.md`.
 │   ├── payments/               Mock/sandbox payment flow
 │   ├── promo_codes/            Fixed-credit promo codes
 │   ├── dashboard/              Streamlit analytics dashboard
+│   ├── monitoring/             Prometheus metrics endpoint
 │   ├── db/                     Database sessions, models, migrations glue
 │   ├── core/                   Settings, errors, shared application utilities
 │   └── main.py                 Application entry point
