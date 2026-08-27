@@ -26,11 +26,16 @@ password: admin
 - Prediction counts and statuses.
 - Credit ledger totals.
 - Uploaded model list.
-- Mock payment history.
-- Promo code redemption history.
+- Unified balance operation history.
 
 ## User Actions
 
+- Users can top up credits with a one-button mock payment flow from the
+  `Пополнить баланс` tab.
+- Users can redeem a promo code from a separate block in the same
+  `Пополнить баланс` tab.
+- The dashboard shows one friendly operation history for payment credits, promo
+  credits, debits, and adjustments.
 - Admin users enter a separate admin mode after login.
 - Admin mode does not show user metrics or user tabs.
 - Admin mode can create fixed-credit promo codes with mandatory credit amount,
@@ -55,8 +60,8 @@ outside Docker, the default API URL is `http://127.0.0.1:18000/api/v1`.
 1. Start the local stack.
 2. Open the dashboard URL.
 3. Log in as a registered user.
-4. Verify that balance, predictions, billing, models, payments, and promo
-   redemptions are visible in their tabs.
+4. Verify that balance, predictions, operation history, and models are visible
+   in their tabs.
 5. Log in as an admin user and verify that only the admin promo code screen is
    visible.
 6. Create a promo code with credit amount, total activation limit, start date,

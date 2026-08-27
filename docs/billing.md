@@ -12,6 +12,8 @@ Step 8 adds the core credit balance and ledger behavior.
 - Billing changes write immutable `billing_transactions` rows.
 - Idempotency keys prevent repeated credit/debit operations from changing the
   balance twice.
+- The dashboard shows these ledger rows as one friendly operation history:
+  payments, promo credits, prediction debits, and admin adjustments.
 
 ## Manual Adjustments
 

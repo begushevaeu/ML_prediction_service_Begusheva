@@ -4,9 +4,11 @@ from datetime import UTC, date, datetime, time
 
 from app.dashboard.main import (
     DashboardApiError,
+    _build_payment_payload,
     _build_promo_code_payload,
     _combine_datetime,
     _format_admin_promo_rows,
+    _format_user_operation_rows,
     _friendly_api_error,
     _is_admin,
     _promo_code_status,
@@ -58,6 +60,14 @@ def test_build_promo_code_payload_normalizes_code() -> None:
         "max_redemptions": 50,
         "starts_at": "2026-08-27T00:00:00+00:00",
         "expires_at": "2026-09-27T00:00:00+00:00",
+    }
+
+
+def test_build_payment_payload_uses_mock_credit_price() -> None:
+    assert _build_payment_payload(12) == {
+        "credits_purchased": 12,
+        "amount_cents": 600,
+        "currency": "USD",
     }
 
 
@@ -142,6 +152,61 @@ def test_format_admin_promo_rows_marks_missing_total_limit() -> None:
 
     assert "На пользователя" not in rows[0]
     assert rows[0]["Общий лимит"] == "Не задан"
+
+
+def test_format_user_operation_rows_merges_balance_history() -> None:
+    rows = _format_user_operation_rows(
+        [
+            {
+                "transaction_type": "payment_credit",
+                "direction": "credit",
+                "amount_credits": 10,
+                "balance_after_credits": 10,
+                "status": "posted",
+                "created_at": "2026-08-27T10:00:00+00:00",
+            },
+            {
+                "transaction_type": "promo_credit",
+                "direction": "credit",
+                "amount_credits": 5,
+                "balance_after_credits": 15,
+                "status": "posted",
+                "created_at": "2026-08-27T11:00:00+00:00",
+            },
+            {
+                "transaction_type": "prediction_debit",
+                "direction": "debit",
+                "amount_credits": 1,
+                "balance_after_credits": 14,
+                "status": "posted",
+                "created_at": "2026-08-27T12:00:00+00:00",
+            },
+        ],
+    )
+
+    assert rows == [
+        {
+            "Дата": "2026-08-27 10:00",
+            "Операция": "Пополнение баланса",
+            "Изменение": "+10",
+            "Баланс после": 10,
+            "Статус": "Готово",
+        },
+        {
+            "Дата": "2026-08-27 11:00",
+            "Операция": "Промокод",
+            "Изменение": "+5",
+            "Баланс после": 15,
+            "Статус": "Готово",
+        },
+        {
+            "Дата": "2026-08-27 12:00",
+            "Операция": "Списание за prediction",
+            "Изменение": "-1",
+            "Баланс после": 14,
+            "Статус": "Готово",
+        },
+    ]
 
 
 def test_friendly_api_error_prefers_error_message() -> None:

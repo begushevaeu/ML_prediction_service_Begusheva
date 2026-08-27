@@ -18,6 +18,7 @@ from app.dashboard.service import (
 )
 
 DEFAULT_API_BASE_URL = "http://127.0.0.1:18000/api/v1"
+MOCK_CENTS_PER_CREDIT = 50
 COLUMN_LABELS = {
     "id": "ID",
     "model_id": "ID модели",
@@ -43,6 +44,17 @@ COLUMN_LABELS = {
     "starts_at": "Начало",
     "expires_at": "Окончание",
     "updated_at": "Обновлено",
+}
+TRANSACTION_TYPE_LABELS = {
+    "payment_credit": "Пополнение баланса",
+    "promo_credit": "Промокод",
+    "prediction_debit": "Списание за prediction",
+    "adjustment": "Корректировка баланса",
+}
+TRANSACTION_STATUS_LABELS = {
+    "posted": "Готово",
+    "pending": "В обработке",
+    "voided": "Отменено",
 }
 
 
@@ -133,6 +145,32 @@ def _login(email: str, password: str) -> str:
     return token
 
 
+def _redeem_promo_code(token: str, code: str) -> dict[str, Any]:
+    return _request_json(
+        "/promo-codes/redeem",
+        method="POST",
+        token=token,
+        payload={"code": code},
+    )
+
+
+def _create_payment(token: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return _request_json(
+        "/payments",
+        method="POST",
+        token=token,
+        payload=payload,
+    )
+
+
+def _confirm_payment(token: str, payment_id: int) -> dict[str, Any]:
+    return _request_json(
+        f"/payments/{payment_id}/confirm",
+        method="POST",
+        token=token,
+    )
+
+
 def _create_promo_code(token: str, payload: dict[str, Any]) -> dict[str, Any]:
     return _request_json(
         "/promo-codes",
@@ -184,6 +222,13 @@ def _as_int(value: Any, *, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _positive_int(value: Any) -> int | None:
+    amount = _as_int(value, default=0)
+    if amount <= 0:
+        return None
+    return amount
 
 
 def _parse_api_datetime(value: Any) -> datetime | None:
@@ -280,6 +325,43 @@ def _build_promo_code_payload(
     return payload
 
 
+def _build_payment_payload(credits_purchased: int) -> dict[str, Any]:
+    return {
+        "credits_purchased": credits_purchased,
+        "amount_cents": credits_purchased * MOCK_CENTS_PER_CREDIT,
+        "currency": "USD",
+    }
+
+
+def _format_money_cents(amount_cents: int, currency: str = "USD") -> str:
+    return f"{currency.upper()} {amount_cents / 100:.2f}"
+
+
+def _format_credit_delta(transaction: dict[str, Any]) -> str:
+    amount = _as_int(transaction.get("amount_credits"))
+    prefix = "-" if transaction.get("direction") == "debit" else "+"
+    return f"{prefix}{amount}"
+
+
+def _format_user_operation_rows(
+    transactions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for transaction in transactions:
+        transaction_type = str(transaction.get("transaction_type") or "")
+        status = str(transaction.get("status") or "")
+        rows.append(
+            {
+                "Дата": _format_api_datetime(transaction.get("created_at")),
+                "Операция": TRANSACTION_TYPE_LABELS.get(transaction_type, transaction_type or "-"),
+                "Изменение": _format_credit_delta(transaction),
+                "Баланс после": transaction.get("balance_after_credits"),
+                "Статус": TRANSACTION_STATUS_LABELS.get(status, status or "-"),
+            },
+        )
+    return rows
+
+
 def _render_login() -> None:
     st.sidebar.header("Вход")
     with st.sidebar.expander("Настройки подключения"):
@@ -346,6 +428,84 @@ def _render_overview(data: dict[str, Any]) -> None:
             {"metric": "Промокоды", "credits": transaction_summary["promo_credits"]},
         ]
         st.dataframe(credit_rows, hide_index=True, use_container_width=True)
+
+
+def _render_promo_redeem(token: str) -> None:
+    success_message = st.session_state.pop("promo_redeem_success", "")
+    if success_message:
+        st.success(success_message)
+
+    with st.form("promo-redeem-form"):
+        code = st.text_input("Промокод")
+        submitted = st.form_submit_button("Активировать", type="primary")
+
+    if not submitted:
+        return
+
+    normalized_code = code.strip()
+    if not normalized_code:
+        st.warning("Введите промокод.")
+        return
+
+    try:
+        redemption = _redeem_promo_code(token, normalized_code)
+    except DashboardApiError as exc:
+        st.error(f"Промокод не активирован: {_friendly_api_error(exc)}")
+        return
+
+    credits = redemption.get("credits_granted")
+    st.session_state["promo_redeem_success"] = f"Промокод активирован. Начислено: {credits}."
+    st.rerun()
+
+
+def _render_balance_top_up(token: str) -> None:
+    success_message = st.session_state.pop("balance_top_up_success", "")
+    if success_message:
+        st.success(success_message)
+
+    with st.form("balance-top-up-form"):
+        credits_value = int(
+            st.number_input(
+                "Сколько кредитов пополнить",
+                min_value=1,
+                value=10,
+                step=1,
+            ),
+        )
+        st.caption(
+            f"Mock-платеж: {_format_money_cents(credits_value * MOCK_CENTS_PER_CREDIT)}",
+        )
+        submitted = st.form_submit_button("Пополнить через mock-платеж", type="primary")
+
+    if not submitted:
+        return
+
+    credits = _positive_int(credits_value)
+    if credits is None:
+        st.warning("Введите положительное количество кредитов.")
+        return
+
+    try:
+        payment = _create_payment(token, _build_payment_payload(credits))
+        payment_id = _positive_int(payment.get("id"))
+        if payment_id is None:
+            raise DashboardApiError("Платеж создан без корректного ID")
+        confirmed = _confirm_payment(token, payment_id)
+    except DashboardApiError as exc:
+        st.error(f"Баланс не пополнен: {_friendly_api_error(exc)}")
+        return
+
+    credited = confirmed.get("credits_purchased", credits)
+    st.session_state["balance_top_up_success"] = f"Баланс пополнен на {credited} кредитов."
+    st.rerun()
+
+
+def _render_user_operation_history(transactions: list[dict[str, Any]]) -> None:
+    rows = _format_user_operation_rows(transactions)
+    if rows:
+        st.dataframe(rows, hide_index=True, use_container_width=True)
+    else:
+        st.info("Пока нет операций по балансу.")
 
 
 def _render_admin_promo_list(promo_codes: list[dict[str, Any]]) -> None:
@@ -462,9 +622,9 @@ def _render_admin_dashboard(token: str, user: dict[str, Any]) -> None:
 
 
 def _render_tables(data: dict[str, Any], token: str) -> None:
-    tab_names = ["Обзор", "Предсказания", "Биллинг", "Модели", "Платежи и промо"]
+    tab_names = ["Обзор", "Предсказания", "История операций", "Модели", "Пополнить баланс"]
     tabs = st.tabs(tab_names)
-    overview_tab, predictions_tab, billing_tab, models_tab, money_tab = tabs[:5]
+    overview_tab, predictions_tab, history_tab, models_tab, top_up_tab = tabs[:5]
 
     with overview_tab:
         _render_overview(data)
@@ -479,22 +639,8 @@ def _render_tables(data: dict[str, Any], token: str) -> None:
             use_container_width=True,
         )
 
-    with billing_tab:
-        st.dataframe(
-            _format_rows(
-                data["transactions"],
-                [
-                    "id",
-                    "transaction_type",
-                    "direction",
-                    "amount_credits",
-                    "balance_after_credits",
-                    "created_at",
-                ],
-            ),
-            hide_index=True,
-            use_container_width=True,
-        )
+    with history_tab:
+        _render_user_operation_history(data["transactions"])
 
     with models_tab:
         st.dataframe(
@@ -503,22 +649,15 @@ def _render_tables(data: dict[str, Any], token: str) -> None:
             use_container_width=True,
         )
 
-    with money_tab:
-        st.subheader("Платежи")
-        st.dataframe(
-            _format_rows(
-                data["payments"],
-                ["id", "status", "credits_purchased", "amount_cents", "currency", "created_at"],
-            ),
-            hide_index=True,
-            use_container_width=True,
-        )
-        st.subheader("Промокоды")
-        st.dataframe(
-            _format_rows(data["redemptions"], ["id", "code", "credits_granted", "created_at"]),
-            hide_index=True,
-            use_container_width=True,
-        )
+    with top_up_tab:
+        st.metric("Текущий баланс", data["balance"].get("credits_available", 0))
+        payment_block, promo_block = st.columns(2)
+        with payment_block:
+            st.subheader("Пополнить баланс")
+            _render_balance_top_up(token)
+        with promo_block:
+            st.subheader("Активировать промокод")
+            _render_promo_redeem(token)
 
 
 def main() -> None:

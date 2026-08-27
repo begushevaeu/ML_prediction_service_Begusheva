@@ -11,6 +11,8 @@ Step 9 adds the MVP mock payment flow for topping up credits.
 - Successful confirmation creates one `payment_credit` billing transaction.
 - Repeated confirmation is idempotent and does not credit the balance twice.
 - Users can list and inspect only their own payments.
+- In the Streamlit dashboard, the MVP top-up button creates and confirms the
+  mock payment in one user action.
 
 ## Create Payment
 
