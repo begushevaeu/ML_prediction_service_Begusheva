@@ -33,11 +33,12 @@ seconds and Grafana provisions a Prometheus datasource plus an MVP dashboard.
 | Prometheus | `http://127.0.0.1:19090` |
 | Grafana | `http://127.0.0.1:13000` |
 
-Default Grafana login for local development:
+Default admin logins for local development:
 
-```text
-admin / admin
-```
+| UI | Login | Password |
+| --- | --- | --- |
+| Grafana | `admin` | `admin` |
+| Application dashboard | `admin` | `admin` |
 
 ## Manual Check
 

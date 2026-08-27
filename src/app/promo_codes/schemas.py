@@ -16,10 +16,10 @@ class PromoCodeCreate(BaseModel):
 
     code: str = Field(min_length=3, max_length=64)
     credit_amount: int = Field(gt=0)
-    max_redemptions: int | None = Field(default=None, gt=0)
+    max_redemptions: int = Field(gt=0)
     is_active: bool = True
-    starts_at: datetime | None = None
-    expires_at: datetime | None = None
+    starts_at: datetime
+    expires_at: datetime
 
     @field_validator("code")
     @classmethod
@@ -28,9 +28,8 @@ class PromoCodeCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_window(self) -> "PromoCodeCreate":
-        if self.starts_at is not None and self.expires_at is not None:
-            if self.starts_at >= self.expires_at:
-                raise ValueError("starts_at must be before expires_at")
+        if self.starts_at >= self.expires_at:
+            raise ValueError("starts_at must be before expires_at")
         return self
 
 

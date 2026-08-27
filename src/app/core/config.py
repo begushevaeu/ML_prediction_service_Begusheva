@@ -41,6 +41,10 @@ class Settings:
     model_storage_path: str = "/var/lib/ml_prediction_service/models"
     max_model_upload_size_bytes: int = 10 * 1024 * 1024
     prediction_price_credits: int = 1
+    bootstrap_local_admin: bool = False
+    local_admin_username: str = "admin"
+    local_admin_email: str = "admin@example.com"
+    local_admin_password: str = "admin"
 
 
 def validate_security_settings(settings: Settings) -> None:
@@ -57,6 +61,13 @@ def validate_security_settings(settings: Settings) -> None:
 
     if settings.prediction_price_credits <= 0:
         raise RuntimeError("PREDICTION_PRICE_CREDITS must be positive")
+
+    if settings.bootstrap_local_admin and settings.app_env.strip().lower() not in {
+        "local",
+        "dev",
+        "development",
+    }:
+        raise RuntimeError("BOOTSTRAP_LOCAL_ADMIN can only be enabled locally")
 
     if settings.app_env.strip().lower() in LOCAL_APP_ENVS:
         return
@@ -96,6 +107,13 @@ def get_settings() -> Settings:
             "PREDICTION_PRICE_CREDITS",
             Settings.prediction_price_credits,
         ),
+        bootstrap_local_admin=_read_bool(
+            "BOOTSTRAP_LOCAL_ADMIN",
+            Settings.bootstrap_local_admin,
+        ),
+        local_admin_username=os.getenv("LOCAL_ADMIN_USERNAME", Settings.local_admin_username),
+        local_admin_email=os.getenv("LOCAL_ADMIN_EMAIL", Settings.local_admin_email),
+        local_admin_password=os.getenv("LOCAL_ADMIN_PASSWORD", Settings.local_admin_password),
     )
 
 

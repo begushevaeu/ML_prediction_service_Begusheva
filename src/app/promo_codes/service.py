@@ -56,6 +56,24 @@ def list_promo_codes(session: Session) -> list[PromoCode]:
     )
 
 
+def get_promo_code(
+    session: Session,
+    *,
+    promo_code_id: int,
+    lock: bool = False,
+) -> PromoCode:
+    """Return one promo code for admin operations."""
+
+    statement = select(PromoCode).where(PromoCode.id == promo_code_id)
+    if lock:
+        statement = statement.with_for_update()
+
+    promo_code = session.scalar(statement)
+    if promo_code is None:
+        raise PromoCodeNotFoundError("Promo code not found")
+    return promo_code
+
+
 def create_promo_code(
     session: Session,
     *,
@@ -78,6 +96,19 @@ def create_promo_code(
         created_by_user_id=created_by_user_id,
     )
     session.add(promo_code)
+    session.flush()
+    return promo_code
+
+
+def deactivate_promo_code(
+    session: Session,
+    *,
+    promo_code_id: int,
+) -> PromoCode:
+    """Deactivate a promo code without deleting redemption history."""
+
+    promo_code = get_promo_code(session, promo_code_id=promo_code_id, lock=True)
+    promo_code.is_active = False
     session.flush()
     return promo_code
 
@@ -170,6 +201,8 @@ __all__ = [
     "PromoCodeNotActiveError",
     "PromoCodeNotFoundError",
     "create_promo_code",
+    "deactivate_promo_code",
+    "get_promo_code",
     "list_promo_codes",
     "list_user_redemptions",
     "redeem_promo_code",

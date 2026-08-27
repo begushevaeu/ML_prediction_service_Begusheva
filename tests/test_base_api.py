@@ -101,6 +101,7 @@ def test_openapi_exposes_base_api_contracts(client: TestClient) -> None:
     assert "/api/v1/payments/{payment_id}" in paths
     assert "/api/v1/payments/{payment_id}/confirm" in paths
     assert "/api/v1/promo-codes" in paths
+    assert "/api/v1/promo-codes/{promo_code_id}/deactivate" in paths
     assert "/api/v1/promo-codes/redeem" in paths
     assert "/api/v1/promo-codes/redemptions" in paths
 

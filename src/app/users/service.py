@@ -5,11 +5,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.passwords import hash_password, verify_password
+from app.core.config import Settings
 from app.db.models import CreditBalance, Role, User
 from app.users.schemas import UserCreate, UserRead, UserUpdate, normalize_email
 
 DEFAULT_USER_ROLE = "user"
 ADMIN_ROLE = "admin"
+LOCAL_ADMIN_ENVS = {"local", "dev", "development"}
 
 
 class DuplicateUserError(ValueError):
@@ -34,6 +36,21 @@ def get_user_by_email(session: Session, email: str) -> User | None:
     """Find a user by normalized email address."""
 
     return session.scalar(select(User).where(User.email == normalize_email(email)))
+
+
+def _local_admin_enabled(settings: Settings | None) -> bool:
+    if settings is None or not settings.bootstrap_local_admin:
+        return False
+    return settings.app_env.strip().lower() in LOCAL_ADMIN_ENVS
+
+
+def _resolve_login_email(identifier: str, settings: Settings | None) -> str:
+    if (
+        _local_admin_enabled(settings)
+        and identifier.strip().lower() == settings.local_admin_username.strip().lower()
+    ):
+        return settings.local_admin_email
+    return identifier
 
 
 def create_user(session: Session, payload: UserCreate) -> User:
@@ -62,10 +79,19 @@ def create_user(session: Session, payload: UserCreate) -> User:
     return user
 
 
-def authenticate_user(session: Session, email: str, password: str) -> User | None:
+def authenticate_user(
+    session: Session,
+    email: str,
+    password: str,
+    settings: Settings | None = None,
+) -> User | None:
     """Return the user when credentials are valid."""
 
-    user = get_user_by_email(session, email)
+    try:
+        user = get_user_by_email(session, _resolve_login_email(email, settings))
+    except ValueError:
+        return None
+
     if user is None or not user.is_active:
         return None
 
@@ -73,6 +99,39 @@ def authenticate_user(session: Session, email: str, password: str) -> User | Non
         return None
 
     return user
+
+
+def ensure_local_admin_user(session: Session, settings: Settings) -> User | None:
+    """Create or refresh the local admin account when explicitly enabled."""
+
+    if not _local_admin_enabled(settings):
+        return None
+
+    admin_email = normalize_email(settings.local_admin_email)
+    admin_role = ensure_role(session, ADMIN_ROLE, "Administrator")
+    admin_user = session.scalar(select(User).where(User.email == admin_email))
+
+    if admin_user is None:
+        admin_user = User(
+            email=admin_email,
+            password_hash=hash_password(settings.local_admin_password),
+            full_name="Local Admin",
+            is_active=True,
+            role=admin_role,
+        )
+        admin_user.credit_balance = CreditBalance(credits_available=0)
+        session.add(admin_user)
+    else:
+        admin_user.password_hash = hash_password(settings.local_admin_password)
+        admin_user.full_name = admin_user.full_name or "Local Admin"
+        admin_user.is_active = True
+        admin_user.role = admin_role
+        if admin_user.credit_balance is None:
+            admin_user.credit_balance = CreditBalance(credits_available=0)
+
+    session.commit()
+    session.refresh(admin_user)
+    return admin_user
 
 
 def update_user(user: User, payload: UserUpdate, session: Session) -> User:
@@ -105,6 +164,7 @@ __all__ = [
     "DuplicateUserError",
     "authenticate_user",
     "create_user",
+    "ensure_local_admin_user",
     "ensure_role",
     "get_user_by_email",
     "update_user",

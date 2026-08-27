@@ -175,9 +175,10 @@ The mock payment flow is documented in `docs/payments.md`.
 
 ## Promo Codes
 
-Admins can create fixed-credit promo codes, and users can redeem active codes
-once into their common credit balance. Successful redemption writes a
-`promo_credit` billing transaction.
+Admins can create fixed-credit promo codes with required credit amount, total
+activation limit, start date, and expiration date, deactivate them later, and
+users can redeem active codes once into their common credit balance. Successful
+redemption writes a `promo_credit` billing transaction.
 
 The promo code flow is documented in `docs/promo-codes.md`.
 
@@ -190,8 +191,11 @@ http://127.0.0.1:18501
 ```
 
 Authenticated users can view their balance, prediction statuses, credit ledger,
-uploaded models, mock payments, and promo redemptions. The dashboard uses the
-same API login flow as Swagger.
+uploaded models, mock payments, and promo redemptions. Admin users enter a
+separate promo-management mode after login, without user metric cards or user
+dashboard tabs. The admin screen shows one promo code list at the top plus
+creation and deactivation controls. The dashboard uses the same API login flow
+as Swagger.
 
 The dashboard flow is documented in `docs/dashboard.md`.
 
@@ -206,6 +210,14 @@ http://127.0.0.1:18000/metrics
 Prometheus is available at `http://127.0.0.1:19090`, and Grafana is available at
 `http://127.0.0.1:13000` with local credentials `admin / admin`.
 
+For local development, the application dashboard admin uses the same short
+credentials:
+
+```text
+login: admin
+password: admin
+```
+
 The monitoring setup is documented in `docs/monitoring.md`.
 
 ## Testing
@@ -215,7 +227,7 @@ model upload, asynchronous predictions, billing, mock payments, promo codes,
 analytics aggregation, monitoring metrics, and cross-user data isolation.
 
 Coverage is configured in `pyproject.toml` with a minimum total threshold of
-70%. The current local suite result is 66 passed tests and 85% total coverage.
+70%. The current local suite result is 78 passed tests and 81% total coverage.
 
 The testing strategy is documented in `docs/testing.md`.
 

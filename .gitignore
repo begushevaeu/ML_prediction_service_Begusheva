@@ -11,6 +11,10 @@ htmlcov/
 .env
 .venv/
 venv/
+developer/logs/
+developer/model_storage/
+developer/run_backend_admin_ui.*
+developer/run_dashboard_admin_ui.*
 
 # OS/editor noise
 .DS_Store

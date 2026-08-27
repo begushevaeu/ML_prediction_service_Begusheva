@@ -134,9 +134,9 @@ Example campaigns:
 Controls already supported:
 
 - active/inactive status;
-- optional start and expiration dates;
-- maximum redemption count;
-- one redemption per user per promo code.
+- required start and expiration dates;
+- required total redemption count;
+- fixed one redemption per user per promo code.
 
 ## Basic Financial Model
 

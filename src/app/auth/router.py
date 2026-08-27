@@ -43,7 +43,12 @@ def login(
 ) -> TokenResponse:
     """Authenticate by email/password and return a bearer token."""
 
-    user = authenticate_user(session, email=form_data.username, password=form_data.password)
+    user = authenticate_user(
+        session,
+        email=form_data.username,
+        password=form_data.password,
+        settings=settings,
+    )
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

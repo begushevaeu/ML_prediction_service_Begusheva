@@ -11,7 +11,8 @@ Step 4 adds the MVP authentication and user-management flow.
 5. Stateless logout is handled by discarding the bearer token on the client.
 
 The Swagger UI exposes the OAuth2 password flow through the Authorize button.
-For this MVP, the OAuth2 `username` field is the user's email address.
+For this MVP, the OAuth2 `username` field is normally the user's email address.
+The local admin account can also use the short `admin` login.
 
 ## Roles
 
@@ -24,6 +25,10 @@ New registrations receive the `user` role. Admin accounts are not self-service;
 they can be inserted or promoted later through an admin workflow. The
 `GET /api/v1/users/admin-check` endpoint verifies that role checks return `403`
 for ordinary users and allow admins.
+
+For local development, the backend can bootstrap an admin account with the short
+login `admin` and password `admin`. This is controlled by
+`BOOTSTRAP_LOCAL_ADMIN=true` and is intended only for local/demo environments.
 
 ## Passwords And Tokens
 

@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from app.auth.dependencies import CurrentUser, DbSession, require_roles
 from app.db.models import BillingTransaction, PromoCode, PromoRedemption, User
@@ -21,6 +21,7 @@ from app.promo_codes.service import (
     PromoCodeNotActiveError,
     PromoCodeNotFoundError,
     create_promo_code,
+    deactivate_promo_code,
     list_promo_codes,
     list_user_redemptions,
     redeem_promo_code,
@@ -106,6 +107,31 @@ def create_code(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "promo_code_exists", "message": str(exc)},
+        ) from exc
+
+    session.commit()
+    session.refresh(promo_code)
+    return promo_code_to_read(promo_code)
+
+
+@router.patch(
+    "/{promo_code_id}/deactivate",
+    response_model=PromoCodeRead,
+    summary="Deactivate a promo code",
+)
+def deactivate_code(
+    promo_code_id: Annotated[int, Path(gt=0)],
+    session: DbSession,
+    admin_user: AdminUser,
+) -> PromoCodeRead:
+    """Deactivate a promo code while preserving redemption history."""
+
+    try:
+        promo_code = deactivate_promo_code(session, promo_code_id=promo_code_id)
+    except PromoCodeNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Promo code not found",
         ) from exc
 
     session.commit()

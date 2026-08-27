@@ -54,5 +54,5 @@ and does not increase the balance twice.
 ## Promo Credits
 
 Successful promo code redemption creates one `promo_credit` transaction linked
-to the redemption row. A user can redeem the same promo code only once, and max
-redemption limits are checked before credits are granted.
+to the redemption row. A user can redeem the same promo code only once, and the
+overall redemption limit is checked before credits are granted.

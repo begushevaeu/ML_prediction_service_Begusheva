@@ -5,10 +5,20 @@ Step 11 adds a Streamlit dashboard for the authenticated user.
 ## Scope
 
 - The dashboard connects to the public FastAPI API.
-- Users log in with the same email and password as the API.
+- Users log in with the same email or login and password as the API.
 - The dashboard does not read the database directly.
 - State is held in the Streamlit browser session.
 - The API base URL can be changed from the sidebar for local testing.
+
+## Local Admin Login
+
+For local development, the application dashboard admin uses the same credentials
+as Grafana:
+
+```text
+login: admin
+password: admin
+```
 
 ## Visible Data
 
@@ -18,6 +28,17 @@ Step 11 adds a Streamlit dashboard for the authenticated user.
 - Uploaded model list.
 - Mock payment history.
 - Promo code redemption history.
+
+## User Actions
+
+- Admin users enter a separate admin mode after login.
+- Admin mode does not show user metrics or user tabs.
+- Admin mode can create fixed-credit promo codes with mandatory credit amount,
+  total activation limit, start date, and expiration date.
+- Admin mode can deactivate existing promo codes without deleting redemption
+  history.
+- Admin mode shows a single promo code list at the top with status, credit
+  amount, total activation limit, total usage, issued credits, and dates.
 
 ## Local URL
 
@@ -36,3 +57,8 @@ outside Docker, the default API URL is `http://127.0.0.1:18000/api/v1`.
 3. Log in as a registered user.
 4. Verify that balance, predictions, billing, models, payments, and promo
    redemptions are visible in their tabs.
+5. Log in as an admin user and verify that only the admin promo code screen is
+   visible.
+6. Create a promo code with credit amount, total activation limit, start date,
+   and expiration date.
+7. Deactivate the promo code and verify it is no longer redeemable.

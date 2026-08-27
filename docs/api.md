@@ -51,6 +51,7 @@ Promo codes can return `promo_code_exists`, `promo_not_active`,
 | Payments | `POST /api/v1/payments/{payment_id}/confirm` | Implemented mock confirmation |
 | Promo Codes | `GET /api/v1/promo-codes` | Implemented admin list |
 | Promo Codes | `POST /api/v1/promo-codes` | Implemented admin create |
+| Promo Codes | `PATCH /api/v1/promo-codes/{promo_code_id}/deactivate` | Implemented admin deactivation |
 | Promo Codes | `GET /api/v1/promo-codes/redemptions` | Implemented user redemption list |
 | Promo Codes | `POST /api/v1/promo-codes/redeem` | Implemented user redemption |
 
@@ -91,10 +92,12 @@ Repeated confirmation is safe and does not credit the balance twice.
 
 ## Promo Codes
 
-Admins can create fixed-credit promo codes. Users redeem a code once with
-`POST /api/v1/promo-codes/redeem`, which creates a `promo_credit` ledger row and
-adds credits to the common balance. Inactive, expired, exhausted, missing, and
-already-redeemed codes are rejected.
+Admins can create fixed-credit promo codes with required credit amount, total
+activation limit, start date, and expiration date. Admins can deactivate a code
+with `PATCH /api/v1/promo-codes/{promo_code_id}/deactivate`. Users redeem a code
+once with `POST /api/v1/promo-codes/redeem`, which creates a `promo_credit`
+ledger row and adds credits to the common balance. Inactive, expired,
+exhausted, missing, and already-redeemed codes are rejected.
 
 ## Example Flow
 

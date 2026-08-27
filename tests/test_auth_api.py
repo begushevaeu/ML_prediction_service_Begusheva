@@ -14,7 +14,7 @@ from app.db import Base
 from app.db.models import CreditBalance, Role, User
 from app.db.session import get_db_session
 from app.main import create_app
-from app.users.service import ADMIN_ROLE
+from app.users.service import ADMIN_ROLE, ensure_local_admin_user
 
 TEST_SETTINGS = Settings(
     app_env="test",
@@ -210,6 +210,28 @@ def test_admin_role_can_access_admin_check(
     db_session.commit()
 
     token = login_user(client, email="admin@example.com", password="admin-password")
+    response = client.get("/api/v1/users/admin-check", headers=auth_headers(token))
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "role": "admin"}
+
+
+def test_local_admin_can_login_with_short_admin_credentials(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    local_settings = Settings(
+        app_env="local",
+        jwt_secret_key="test-secret-with-at-least-thirty-two-bytes",
+        bootstrap_local_admin=True,
+        local_admin_username="admin",
+        local_admin_email="admin@example.com",
+        local_admin_password="admin",
+    )
+    client.app.dependency_overrides[get_settings] = lambda: local_settings
+    ensure_local_admin_user(db_session, local_settings)
+
+    token = login_user(client, email="admin", password="admin")
     response = client.get("/api/v1/users/admin-check", headers=auth_headers(token))
 
     assert response.status_code == 200

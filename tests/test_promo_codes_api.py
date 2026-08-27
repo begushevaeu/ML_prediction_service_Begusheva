@@ -20,6 +20,8 @@ TEST_SETTINGS = Settings(
     app_env="test",
     jwt_secret_key="test-secret-with-at-least-thirty-two-bytes",
 )
+DEFAULT_STARTS_AT = "2020-01-01T00:00:00+00:00"
+DEFAULT_EXPIRES_AT = "2099-01-01T00:00:00+00:00"
 
 
 @pytest.fixture
@@ -106,16 +108,19 @@ def create_promo_code(
     *,
     code: str = "launch10",
     credit_amount: int = 10,
-    max_redemptions: int | None = None,
+    max_redemptions: int = 100,
     is_active: bool = True,
+    starts_at: str = DEFAULT_STARTS_AT,
+    expires_at: str = DEFAULT_EXPIRES_AT,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "code": code,
         "credit_amount": credit_amount,
+        "max_redemptions": max_redemptions,
         "is_active": is_active,
+        "starts_at": starts_at,
+        "expires_at": expires_at,
     }
-    if max_redemptions is not None:
-        payload["max_redemptions"] = max_redemptions
 
     response = client.post(
         "/api/v1/promo-codes",
@@ -149,7 +154,13 @@ def test_admin_can_create_and_list_promo_codes(
     duplicate = client.post(
         "/api/v1/promo-codes",
         headers=auth_headers(admin_token),
-        json={"code": "launch10", "credit_amount": 5},
+        json={
+            "code": "launch10",
+            "credit_amount": 5,
+            "max_redemptions": 2,
+            "starts_at": DEFAULT_STARTS_AT,
+            "expires_at": DEFAULT_EXPIRES_AT,
+        },
     )
     list_response = client.get("/api/v1/promo-codes", headers=auth_headers(admin_token))
 
@@ -166,12 +177,62 @@ def test_regular_user_cannot_create_or_list_promo_codes(client: TestClient) -> N
     create_response = client.post(
         "/api/v1/promo-codes",
         headers=auth_headers(token),
-        json={"code": "USER10", "credit_amount": 10},
+        json={
+            "code": "USER10",
+            "credit_amount": 10,
+            "max_redemptions": 10,
+            "starts_at": DEFAULT_STARTS_AT,
+            "expires_at": DEFAULT_EXPIRES_AT,
+        },
     )
     list_response = client.get("/api/v1/promo-codes", headers=auth_headers(token))
+    deactivate_response = client.patch(
+        "/api/v1/promo-codes/1/deactivate",
+        headers=auth_headers(token),
+    )
 
     assert create_response.status_code == 403
     assert list_response.status_code == 403
+    assert deactivate_response.status_code == 403
+
+
+def test_promo_code_creation_requires_date_window(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    create_admin(db_session)
+    admin_token = login_user(client, email="admin@example.com", password="admin-password")
+
+    response = client.post(
+        "/api/v1/promo-codes",
+        headers=auth_headers(admin_token),
+        json={"code": "NODATES", "credit_amount": 10, "max_redemptions": 10},
+    )
+    missing_limit = client.post(
+        "/api/v1/promo-codes",
+        headers=auth_headers(admin_token),
+        json={
+            "code": "NOLIMIT",
+            "credit_amount": 10,
+            "starts_at": DEFAULT_STARTS_AT,
+            "expires_at": DEFAULT_EXPIRES_AT,
+        },
+    )
+    invalid_window = client.post(
+        "/api/v1/promo-codes",
+        headers=auth_headers(admin_token),
+        json={
+            "code": "BADWINDOW",
+            "credit_amount": 10,
+            "max_redemptions": 10,
+            "starts_at": DEFAULT_EXPIRES_AT,
+            "expires_at": DEFAULT_STARTS_AT,
+        },
+    )
+
+    assert response.status_code == 422
+    assert missing_limit.status_code == 422
+    assert invalid_window.status_code == 422
 
 
 def test_user_redeems_promo_once_crediting_balance_and_ledger(
@@ -279,3 +340,41 @@ def test_inactive_and_missing_promo_codes_are_rejected(
     assert inactive.status_code == 409
     assert inactive.json()["error"]["code"] == "promo_not_active"
     assert missing.status_code == 404
+
+
+def test_admin_can_deactivate_promo_code_and_block_redemption(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    create_admin(db_session)
+    admin_token = login_user(client, email="admin@example.com", password="admin-password")
+    promo = create_promo_code(client, admin_token, code="STOPME", credit_amount=7)
+
+    deactivate_response = client.patch(
+        f"/api/v1/promo-codes/{promo['id']}/deactivate",
+        headers=auth_headers(admin_token),
+    )
+    repeated_deactivate = client.patch(
+        f"/api/v1/promo-codes/{promo['id']}/deactivate",
+        headers=auth_headers(admin_token),
+    )
+    missing_deactivate = client.patch(
+        "/api/v1/promo-codes/999/deactivate",
+        headers=auth_headers(admin_token),
+    )
+
+    assert deactivate_response.status_code == 200
+    assert deactivate_response.json()["is_active"] is False
+    assert repeated_deactivate.status_code == 200
+    assert missing_deactivate.status_code == 404
+
+    register_user(client)
+    token = login_user(client)
+    redemption = client.post(
+        "/api/v1/promo-codes/redeem",
+        headers=auth_headers(token),
+        json={"code": "STOPME"},
+    )
+
+    assert redemption.status_code == 409
+    assert redemption.json()["error"]["code"] == "promo_not_active"

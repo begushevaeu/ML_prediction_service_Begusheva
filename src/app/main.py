@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from time import perf_counter
 
 from fastapi import FastAPI, Request, status
@@ -10,8 +12,10 @@ from app.api.router import api_router
 from app.api.schemas import ErrorResponse
 from app.core.config import Settings, get_settings, validate_security_settings
 from app.core.errors import http_exception_handler, validation_exception_handler
+from app.db.session import SessionLocal
 from app.monitoring.metrics import record_http_request
 from app.monitoring.router import router as monitoring_router
+from app.users.service import ensure_local_admin_user
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -19,10 +23,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     resolved_settings = settings or get_settings()
     validate_security_settings(resolved_settings)
+
+    @asynccontextmanager
+    async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
+        if resolved_settings.bootstrap_local_admin:
+            with SessionLocal() as session:
+                ensure_local_admin_user(session, resolved_settings)
+        yield
+
     application = FastAPI(
         title=resolved_settings.app_name,
         debug=resolved_settings.app_debug,
         version="0.1.0",
+        lifespan=lifespan,
         responses={
             status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
             status.HTTP_402_PAYMENT_REQUIRED: {"model": ErrorResponse},

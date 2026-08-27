@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from urllib import error, parse, request
 
@@ -34,12 +35,37 @@ COLUMN_LABELS = {
     "amount_cents": "Сумма, центы",
     "currency": "Валюта",
     "code": "Код",
+    "credit_amount": "Кредиты",
+    "max_redemptions": "Лимит",
+    "redemptions_count": "Активации",
+    "is_active": "Активен",
     "credits_granted": "Начислено",
+    "starts_at": "Начало",
+    "expires_at": "Окончание",
+    "updated_at": "Обновлено",
 }
 
 
 class DashboardApiError(RuntimeError):
     """Raised when the dashboard API request fails."""
+
+
+def _friendly_api_error(exc: DashboardApiError) -> str:
+    try:
+        payload = json.loads(str(exc))
+    except json.JSONDecodeError:
+        return str(exc)
+
+    error_payload = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error_payload, dict):
+        return str(exc)
+
+    message = error_payload.get("message")
+    if isinstance(message, str) and message:
+        return message
+
+    code = error_payload.get("code")
+    return str(code or exc)
 
 
 def _api_base_url() -> str:
@@ -107,9 +133,30 @@ def _login(email: str, password: str) -> str:
     return token
 
 
-def _load_dashboard_data(token: str) -> dict[str, Any]:
+def _create_promo_code(token: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return _request_json(
+        "/promo-codes",
+        method="POST",
+        token=token,
+        payload=payload,
+    )
+
+
+def _deactivate_promo_code(token: str, promo_code_id: int) -> dict[str, Any]:
+    return _request_json(
+        f"/promo-codes/{promo_code_id}/deactivate",
+        method="PATCH",
+        token=token,
+    )
+
+
+def _load_current_user(token: str) -> dict[str, Any]:
+    return _request_json("/users/me", token=token)
+
+
+def _load_dashboard_data(token: str, user: dict[str, Any]) -> dict[str, Any]:
     return {
-        "user": _request_json("/users/me", token=token),
+        "user": user,
         "balance": _request_json("/billing/balance", token=token),
         "transactions": _list_items("/billing/transactions", token),
         "payments": _list_items("/payments", token),
@@ -123,6 +170,116 @@ def _format_rows(rows: list[dict[str, Any]], fields: list[str]) -> list[dict[str
     return [{COLUMN_LABELS.get(field, field): row.get(field) for field in fields} for row in rows]
 
 
+def _is_admin(data: dict[str, Any]) -> bool:
+    user = data.get("user")
+    return isinstance(user, dict) and _is_admin_user(user)
+
+
+def _is_admin_user(user: dict[str, Any]) -> bool:
+    return user.get("role") == "admin"
+
+
+def _as_int(value: Any, *, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_api_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _promo_code_status(
+    promo_code: dict[str, Any],
+    *,
+    now: datetime | None = None,
+) -> str:
+    if not bool(promo_code.get("is_active")):
+        return "Отключен"
+
+    current_time = now or datetime.now(UTC)
+    starts_at = _parse_api_datetime(promo_code.get("starts_at"))
+    expires_at = _parse_api_datetime(promo_code.get("expires_at"))
+    if starts_at is not None and starts_at > current_time:
+        return "Запланирован"
+    if expires_at is not None and expires_at <= current_time:
+        return "Истек"
+
+    max_redemptions = promo_code.get("max_redemptions")
+    if max_redemptions is not None:
+        redemptions_count = _as_int(promo_code.get("redemptions_count"))
+        if redemptions_count >= _as_int(max_redemptions):
+            return "Лимит исчерпан"
+
+    return "Активен"
+
+
+def _promo_code_credits_issued(promo_code: dict[str, Any]) -> int:
+    return _as_int(promo_code.get("credit_amount")) * _as_int(
+        promo_code.get("redemptions_count"),
+    )
+
+
+def _format_api_datetime(value: Any) -> str:
+    parsed = _parse_api_datetime(value)
+    if parsed is None:
+        return "-"
+    return parsed.strftime("%Y-%m-%d %H:%M")
+
+
+def _format_admin_promo_rows(promo_codes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "ID": promo_code.get("id"),
+            "Код": promo_code.get("code"),
+            "Статус": _promo_code_status(promo_code),
+            "Кредиты": promo_code.get("credit_amount"),
+            "Использовано всего": promo_code.get("redemptions_count"),
+            "Выдано кредитов": _promo_code_credits_issued(promo_code),
+            "Общий лимит": promo_code.get("max_redemptions") or "Не задан",
+            "Дата начала": _format_api_datetime(promo_code.get("starts_at")),
+            "Дата окончания": _format_api_datetime(promo_code.get("expires_at")),
+        }
+        for promo_code in promo_codes
+    ]
+
+
+def _combine_datetime(selected_date: date, selected_time: time) -> str:
+    return datetime.combine(selected_date, selected_time, tzinfo=UTC).isoformat()
+
+
+def _build_promo_code_payload(
+    *,
+    code: str,
+    credit_amount: int,
+    max_redemptions: int,
+    starts_at: str,
+    expires_at: str,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "code": code.strip().upper(),
+        "credit_amount": credit_amount,
+        "is_active": True,
+        "starts_at": starts_at,
+        "expires_at": expires_at,
+        "max_redemptions": max_redemptions,
+    }
+    return payload
+
+
 def _render_login() -> None:
     st.sidebar.header("Вход")
     with st.sidebar.expander("Настройки подключения"):
@@ -130,7 +287,7 @@ def _render_login() -> None:
             "API адрес",
             value=_api_base_url(),
         )
-    email = st.sidebar.text_input("Email")
+    email = st.sidebar.text_input("Email или логин")
     password = st.sidebar.text_input("Пароль", type="password")
 
     if st.sidebar.button("Войти", type="primary", use_container_width=True):
@@ -191,10 +348,123 @@ def _render_overview(data: dict[str, Any]) -> None:
         st.dataframe(credit_rows, hide_index=True, use_container_width=True)
 
 
-def _render_tables(data: dict[str, Any]) -> None:
-    overview_tab, predictions_tab, billing_tab, models_tab, money_tab = st.tabs(
-        ["Обзор", "Предсказания", "Биллинг", "Модели", "Платежи и промо"],
-    )
+def _render_admin_promo_list(promo_codes: list[dict[str, Any]]) -> None:
+    st.subheader("Промокоды")
+    promo_rows = _format_admin_promo_rows(promo_codes)
+    if promo_rows:
+        st.dataframe(promo_rows, hide_index=True, use_container_width=True)
+    else:
+        st.info("Пока нет созданных промокодов.")
+
+
+def _render_admin_promo_tools(token: str, promo_codes: list[dict[str, Any]]) -> None:
+    success_message = st.session_state.pop("promo_admin_success", "")
+    if success_message:
+        st.success(success_message)
+
+    st.subheader("Создать промокод")
+    with st.form("promo-create-form"):
+        code = st.text_input("Код")
+
+        first_row = st.columns(2)
+        credit_amount = int(
+            first_row[0].number_input("Кредиты", min_value=1, value=10, step=1),
+        )
+        max_redemptions = int(
+            first_row[1].number_input(
+                "Всего активаций",
+                min_value=1,
+                value=100,
+                step=1,
+            ),
+        )
+
+        today = date.today()
+        date_row = st.columns(4)
+        starts_date = date_row[0].date_input("Дата начала", value=today)
+        starts_time = date_row[1].time_input("Время начала", value=time(0, 0))
+        expires_date = date_row[2].date_input(
+            "Дата окончания",
+            value=today + timedelta(days=30),
+        )
+        expires_time = date_row[3].time_input("Время окончания", value=time(23, 59))
+
+        submitted = st.form_submit_button("Создать промокод", type="primary")
+
+    if submitted:
+        normalized_code = code.strip()
+        starts_at = datetime.combine(starts_date, starts_time, tzinfo=UTC)
+        expires_at = datetime.combine(expires_date, expires_time, tzinfo=UTC)
+        if not normalized_code:
+            st.warning("Введите код промокода.")
+        elif starts_at >= expires_at:
+            st.warning("Дата окончания должна быть позже даты начала.")
+        else:
+            payload = _build_promo_code_payload(
+                code=normalized_code,
+                credit_amount=credit_amount,
+                max_redemptions=max_redemptions,
+                starts_at=starts_at.isoformat(),
+                expires_at=expires_at.isoformat(),
+            )
+
+            try:
+                created = _create_promo_code(token, payload)
+            except DashboardApiError as exc:
+                st.error(f"Промокод не создан: {_friendly_api_error(exc)}")
+            else:
+                st.session_state["promo_admin_success"] = f"Промокод {created.get('code')} создан."
+                st.rerun()
+
+    st.subheader("Деактивировать")
+    active_options = {
+        f"{promo_code.get('code')} | использований: {promo_code.get('redemptions_count', 0)}": (
+            promo_code.get("id")
+        )
+        for promo_code in promo_codes
+        if promo_code.get("is_active") and promo_code.get("id") is not None
+    }
+
+    if active_options:
+        with st.form("promo-deactivate-form"):
+            selected_label = st.selectbox("Промокод", options=list(active_options))
+            deactivate_submitted = st.form_submit_button("Деактивировать")
+
+        if deactivate_submitted:
+            promo_code_id = _as_int(active_options[selected_label])
+            try:
+                deactivated = _deactivate_promo_code(token, promo_code_id)
+            except DashboardApiError as exc:
+                st.error(f"Промокод не деактивирован: {_friendly_api_error(exc)}")
+            else:
+                st.session_state["promo_admin_success"] = (
+                    f"Промокод {deactivated.get('code')} деактивирован."
+                )
+                st.rerun()
+    else:
+        st.info("Нет включенных промокодов для деактивации.")
+
+
+def _render_admin_dashboard(token: str, user: dict[str, Any]) -> None:
+    st.caption("Админ-режим")
+    email = user.get("email")
+    if email:
+        st.caption(str(email))
+
+    try:
+        promo_codes = _list_items("/promo-codes", token)
+    except DashboardApiError as exc:
+        st.error(f"Не удалось загрузить промокоды: {_friendly_api_error(exc)}")
+        return
+
+    _render_admin_promo_list(promo_codes)
+    _render_admin_promo_tools(token, promo_codes)
+
+
+def _render_tables(data: dict[str, Any], token: str) -> None:
+    tab_names = ["Обзор", "Предсказания", "Биллинг", "Модели", "Платежи и промо"]
+    tabs = st.tabs(tab_names)
+    overview_tab, predictions_tab, billing_tab, models_tab, money_tab = tabs[:5]
 
     with overview_tab:
         _render_overview(data)
@@ -254,7 +524,6 @@ def _render_tables(data: dict[str, Any]) -> None:
 def main() -> None:
     st.set_page_config(page_title=f"{APP_NAME} Dashboard", page_icon=None, layout="wide")
     st.title(APP_NAME)
-    st.caption("Пользовательская аналитика")
     _render_login()
 
     token = st.session_state.get("access_token")
@@ -263,12 +532,22 @@ def main() -> None:
         return
 
     try:
-        data = _load_dashboard_data(token)
+        user = _load_current_user(token)
     except DashboardApiError:
         st.error("Не удалось загрузить данные. Проверьте, что API доступен.")
         return
 
-    user = data["user"]
+    if _is_admin_user(user):
+        _render_admin_dashboard(token, user)
+        return
+
+    st.caption("Пользовательская аналитика")
+    try:
+        data = _load_dashboard_data(token, user)
+    except DashboardApiError:
+        st.error("Не удалось загрузить данные. Проверьте, что API доступен.")
+        return
+
     email = user.get("email") if isinstance(user, dict) else None
     if email:
         st.caption(str(email))
@@ -282,7 +561,7 @@ def main() -> None:
         redemptions=data["redemptions"],
     )
     _render_metric_grid(metrics)
-    _render_tables(data)
+    _render_tables(data, token)
 
 
 if __name__ == "__main__":
