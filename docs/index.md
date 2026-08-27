@@ -26,7 +26,8 @@ This page is the public documentation entry point for ML Prediction Service.
 | [Billing](billing.md) | Credit balance rules, ledger behavior, and idempotency |
 | [Payments](payments.md) | Mock payment creation and confirmation |
 | [Promo Codes](promo-codes.md) | Admin-created fixed-credit promo codes and redemption rules |
-| [Dashboard](dashboard.md) | Streamlit user dashboard behavior |
+| [Dashboard](dashboard.md) | Streamlit USER Cabinet and ADMIN Panel behavior |
+| [UI Architecture](ui_architecture.md) | Role-based page architecture and API mapping |
 | [Monitoring](monitoring.md) | Prometheus metrics and Grafana dashboard |
 
 ## Decision Records
@@ -44,7 +45,7 @@ When Docker Compose is running, the main local URLs are:
 | --- | --- |
 | API docs | `http://127.0.0.1:18000/docs` |
 | Backend health | `http://127.0.0.1:18000/api/v1/health` |
-| User dashboard | `http://127.0.0.1:18501` |
+| Dashboard | `http://127.0.0.1:18501` |
 | Metrics endpoint | `http://127.0.0.1:18000/metrics` |
 | Prometheus | `http://127.0.0.1:19090` |
 | Grafana | `http://127.0.0.1:13000` |

@@ -99,6 +99,7 @@ def create_prediction(
         select(MLModel).where(
             MLModel.id == payload.model_id,
             MLModel.owner_id == current_user.id,
+            MLModel.status == "uploaded",
         ),
     )
     if model is None:

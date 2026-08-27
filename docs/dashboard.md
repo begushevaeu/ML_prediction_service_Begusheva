@@ -1,6 +1,9 @@
 # Dashboard
 
-Step 11 adds a Streamlit dashboard for the authenticated user.
+The Streamlit dashboard provides two separate role-based workspaces:
+
+- USER Cabinet for ordinary ML-service users;
+- ADMIN Panel for platform administration.
 
 ## Scope
 
@@ -22,35 +25,44 @@ password: admin
 
 ## Visible Data
 
-- Prediction panel above the user tabs for selecting one uploaded model,
-  uploading prediction data, and running a prediction.
-- Uploaded model list in the model upload tab.
-- Prediction history with friendly statuses.
-- Unified balance operation history.
+- USER Cabinet uses a dark left sidebar with pages `Обзор`, `Предсказания`,
+  `Мои модели`, and `Баланс`.
+- USER overview shows balance, prediction count, active model count, latest
+  predictions, and a quick `Новое предсказание` action.
+- USER predictions page supports model selection, CSV/manual input, cost
+  preview, async status/result display, history, and status filtering.
+- USER models page supports model upload, model list, status display, and
+  selecting a model for prediction. User model deletion remains disabled because
+  the user-facing delete API is not implemented.
+- USER balance page shows current credits, mock top-up, promo redemption,
+  payment history, promo history, and the unified credit ledger.
+- ADMIN Panel uses a separate sidebar with pages `Обзор`, `Пользователи`,
+  `Модели`, `Платежи`, `Транзакции`, `Промокоды`, `Настройки системы`,
+  `Мониторинг`, and `Логи и ошибки`.
+- ADMIN pages use `/api/v1/admin/*` endpoints for global platform data.
 
 ## User Actions
 
 - Users can upload a Scikit-learn `.joblib`, `.pkl`, or `.pickle` model from
-  the `Загрузить новую модель` tab.
+  the `Мои модели` page.
 - Users can upload a CSV file with prediction rows or enter rows manually,
-  submit the prediction from the panel above the user tabs, refresh pending
-  tasks, and see the result or error in the same panel.
+  submit the prediction from the `Предсказания` page, refresh pending tasks,
+  and see the result or error in the same page.
 - Users can top up credits with a one-button mock payment flow from the
-  `Пополнить баланс` tab.
-- Users can redeem a promo code from a separate block in the same
-  `Пополнить баланс` tab.
-- The user tabs are `Загрузить новую модель`, `История предсказаний`,
-  `Пополнить баланс`, and `История операций`.
+  `Баланс` page.
+- Users can redeem a promo code from a separate block on the `Баланс` page.
 - The dashboard shows one friendly operation history for payment credits, promo
   credits, debits, and adjustments.
-- Admin users enter a separate admin mode after login.
-- Admin mode does not show user metrics or user tabs.
-- Admin mode can create fixed-credit promo codes with mandatory credit amount,
-  total activation limit, start date, and expiration date.
-- Admin mode can deactivate existing promo codes without deleting redemption
-  history.
-- Admin mode shows a single promo code list at the top with status, credit
-  amount, total activation limit, total usage, issued credits, and dates.
+- Admin users enter a separate ADMIN Panel after login. User pages are not shown
+  to admins.
+- Admins can inspect global users, models, payments, transactions, promo codes,
+  settings, monitoring summary, and prediction errors.
+- Admin overview shows prediction activity as stacked daily status bars, with
+  success/failure inside each column and the daily total displayed above it.
+- Admins can block/unblock users through `User.is_active`.
+- Admins can soft-delete problematic models while preserving prediction history.
+- Admins can create and deactivate fixed-credit promo codes.
+- Admins can create manual credit adjustments from the transactions page.
 
 ## Local URL
 
@@ -67,14 +79,15 @@ outside Docker, the default API URL is `http://127.0.0.1:18000/api/v1`.
 1. Start the local stack.
 2. Open the dashboard URL.
 3. Log in as a registered user.
-4. Verify that the user tabs are `Загрузить новую модель`,
-   `История предсказаний`, `Пополнить баланс`, and `История операций`.
-5. Upload a model in the `Загрузить новую модель` tab.
-6. Select one uploaded model in the prediction panel above the tabs, upload a
-   CSV file with prediction rows, run the prediction, and verify that the
-   prediction status/result appears.
-7. Log in as an admin user and verify that only the admin promo code screen is
-   visible.
-8. Create a promo code with credit amount, total activation limit, start date,
-   and expiration date.
-9. Deactivate the promo code and verify it is no longer redeemable.
+4. Verify that the USER sidebar shows `Обзор`, `Предсказания`, `Мои модели`,
+   and `Баланс`.
+5. Upload a model in `Мои модели`.
+6. Select one uploaded model on `Предсказания`, upload a CSV file with
+   prediction rows, run the prediction, and verify that the status/result
+   appears.
+7. Top up credits and redeem a promo code from `Баланс`.
+8. Log in as an admin user and verify that the ADMIN sidebar is shown instead
+   of USER pages.
+9. Inspect admin overview, users, models, payments, transactions, promo codes,
+   settings, monitoring, and logs.
+10. Create and deactivate a fixed-credit promo code.

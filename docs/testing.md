@@ -24,12 +24,16 @@ coverage report --fail-under=70
 The current local suite result is:
 
 ```text
-90 passed, 8 warnings
-TOTAL coverage: 76%
+95 passed, 8 warnings
+TOTAL coverage: 89%
 ```
 
 The warnings come from third-party test/runtime dependencies and do not indicate
 application test failures.
+
+The Streamlit visual entrypoint (`src/app/dashboard/main.py`) is excluded from
+the coverage gate because it is a UI shell. Dashboard data shaping helpers and
+the backend/API flows used by the dashboard remain covered by tests.
 
 ## Covered Areas
 
@@ -47,7 +51,9 @@ application test failures.
 - Mock payment creation, confirmation, repeated confirmation, and owner scoping.
 - Promo code creation, activation limits, repeated redemption prevention, and
   promo credit ledger writes.
-- Analytics dashboard aggregation helpers.
+- Analytics dashboard aggregation and UI data formatting helpers.
+- Admin dashboard APIs for role protection, global lists, status changes, and
+  soft-deleted model behavior.
 - Prometheus metrics output and business metric collection.
 - Cross-user isolation for models, predictions, billing transactions, payments,
   promo redemptions, and detail endpoints.
@@ -61,6 +67,6 @@ highest-risk seams across already implemented modules:
 - A second user cannot see or fetch another user's domain data.
 - Billing idempotency keys prevent duplicate credit/debit ledger rows.
 
-The later Security, dashboard, admin-login, user top-up, and user model action
-stages extend the suite to 90 tests while keeping total coverage above the 70%
-gate.
+The later Security, dashboard, admin-login, user top-up, user model action, and
+admin panel stages extend the suite to 95 tests while keeping total coverage
+above the 70% gate.

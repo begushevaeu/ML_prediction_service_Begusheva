@@ -9,6 +9,7 @@ from app.dashboard.main import (
     DashboardApiError,
     _build_model_upload_fields,
     _build_payment_payload,
+    _build_prediction_activity_chart_rows,
     _build_prediction_payload,
     _build_prediction_payload_from_rows,
     _build_promo_code_payload,
@@ -80,6 +81,33 @@ def test_build_payment_payload_uses_mock_credit_price() -> None:
         "amount_cents": 600,
         "currency": "USD",
     }
+
+
+def test_build_prediction_activity_chart_rows_adds_segments_and_total_label() -> None:
+    rows = _build_prediction_activity_chart_rows(
+        [
+            {
+                "date": "2026-08-27",
+                "predictions_total": 5,
+                "predictions_succeeded": 3,
+                "predictions_failed": 1,
+            },
+            {
+                "date": "2026-08-28",
+                "predictions_total": 0,
+                "predictions_succeeded": 0,
+                "predictions_failed": 0,
+            },
+        ],
+    )
+
+    assert [(row["Kind"], row["Статус"], row["Количество"]) for row in rows] == [
+        ("segment", "Удача", 3),
+        ("segment", "Неудача", 1),
+        ("segment", "В обработке", 1),
+        ("total", "Всего", 5),
+    ]
+    assert rows[-1]["TotalLabel"] == "5"
 
 
 def test_parse_prediction_rows_accepts_friendly_csv_input() -> None:
@@ -207,7 +235,7 @@ def test_format_admin_promo_rows_adds_issued_credits() -> None:
     assert "На пользователя" not in rows[0]
     assert rows[0]["Использовано всего"] == 4
     assert rows[0]["Выдано кредитов"] == 100
-    assert rows[0]["Общий лимит"] == 100
+    assert rows[0]["Общий лимит"] == "100"
 
 
 def test_format_admin_promo_rows_marks_missing_total_limit() -> None:

@@ -54,9 +54,29 @@ Promo codes can return `promo_code_exists`, `promo_not_active`,
 | Promo Codes | `PATCH /api/v1/promo-codes/{promo_code_id}/deactivate` | Implemented admin deactivation |
 | Promo Codes | `GET /api/v1/promo-codes/redemptions` | Implemented user redemption list |
 | Promo Codes | `POST /api/v1/promo-codes/redeem` | Implemented user redemption |
+| Admin | `GET /api/v1/admin/dashboard/summary` | Implemented global KPI summary |
+| Admin | `GET /api/v1/admin/dashboard/activity` | Implemented prediction activity |
+| Admin | `GET /api/v1/admin/events` | Implemented derived activity feed |
+| Admin | `GET /api/v1/admin/users` | Implemented global user list |
+| Admin | `GET /api/v1/admin/users/{user_id}` | Implemented user detail |
+| Admin | `PATCH /api/v1/admin/users/{user_id}/status` | Implemented user block/unblock |
+| Admin | `GET /api/v1/admin/models` | Implemented global model list |
+| Admin | `GET /api/v1/admin/models/{model_id}` | Implemented model detail |
+| Admin | `DELETE /api/v1/admin/models/{model_id}` | Implemented model soft-delete |
+| Admin | `GET /api/v1/admin/predictions` | Implemented global prediction list |
+| Admin | `GET /api/v1/admin/predictions/{prediction_id}` | Implemented prediction detail |
+| Admin | `GET /api/v1/admin/payments` | Implemented global payment list |
+| Admin | `GET /api/v1/admin/payments/{payment_id}` | Implemented payment detail |
+| Admin | `GET /api/v1/admin/billing/transactions` | Implemented global credit ledger |
+| Admin | `GET /api/v1/admin/promo-codes/{promo_code_id}/redemptions` | Implemented promo usage detail |
+| Admin | `GET /api/v1/admin/system/settings` | Implemented read-only non-secret settings |
+| Admin | `GET /api/v1/admin/monitoring/summary` | Implemented compact monitoring summary |
+| Admin | `GET /api/v1/admin/logs` | Implemented derived prediction error list |
 
 All model, prediction, billing, and payment endpoints are protected by bearer
 authentication and only return rows owned by the current user.
+Admin endpoints are protected by the `admin` role and can return global platform
+data across users.
 
 ## Model Upload
 
@@ -98,6 +118,25 @@ with `PATCH /api/v1/promo-codes/{promo_code_id}/deactivate`. Users redeem a code
 once with `POST /api/v1/promo-codes/redeem`, which creates a `promo_credit`
 ledger row and adds credits to the common balance. Inactive, expired,
 exhausted, missing, and already-redeemed codes are rejected.
+
+## Admin API
+
+The `/api/v1/admin/*` endpoints power the Streamlit Admin Panel. They expose
+global data for users with the `admin` role only:
+
+- dashboard KPIs and derived activity events;
+- users with role, active status, balance, and activity counts;
+- all models with owner and run counts;
+- all predictions with joined user/model labels and posted credit cost;
+- all payments and credit ledger transactions;
+- promo code usage detail;
+- read-only safe runtime settings;
+- compact monitoring summary with Prometheus/Grafana links;
+- prediction errors derived from failed prediction tasks.
+
+Model deletion is implemented as a soft-delete: the model row status becomes
+`deleted`, the stored artifact is removed when possible, and new prediction
+requests ignore non-`uploaded` models. Existing prediction history is preserved.
 
 ## Example Flow
 

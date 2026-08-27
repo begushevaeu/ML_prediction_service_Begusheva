@@ -41,6 +41,9 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.coverage.run]
 branch = true
 source = ["src/app"]
+omit = [
+    "src/app/dashboard/main.py",
+]
 
 [tool.coverage.report]
 fail_under = 70

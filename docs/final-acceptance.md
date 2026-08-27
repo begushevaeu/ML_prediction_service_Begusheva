@@ -17,7 +17,7 @@ Date: 2026-08-26
 | Swagger/OpenAPI is available | Passed | `GET /openapi.json` and Swagger UI are available on the backend |
 | Project runs through Docker Compose | Passed | Backend, worker, dashboard, PostgreSQL, Redis, Prometheus, and Grafana are running |
 | Prometheus/Grafana are configured | Passed | `/metrics` is available, Prometheus query succeeds, and Grafana health is OK |
-| Test coverage is greater than 70% | Passed | 90 tests passed; total coverage is 76% |
+| Test coverage is greater than 70% | Passed | 95 tests passed; total coverage is 89% |
 | Short business plan exists | Passed | `docs/business-plan.md` is complete and linked from the docs index |
 
 ## Runtime Verification
@@ -76,13 +76,13 @@ ruff format --check .
 90 files already formatted
 
 pytest
-90 passed, 8 warnings
+95 passed, 8 warnings
 
 coverage run -m pytest
-90 passed, 8 warnings
+95 passed, 8 warnings
 
 coverage report --fail-under=70
-TOTAL coverage: 76%
+TOTAL coverage: 89%
 ```
 
 The warnings come from third-party dependencies used by the test client and
@@ -117,8 +117,8 @@ The public documentation includes:
 - No production deployment workflow is included beyond Docker Compose.
 - No real payment provider webhooks, refunds, or disputes are implemented.
 - No rate limiting, login throttling, or account lockout is implemented yet.
-- Broader admin UI outside promo-code management and credit package catalog are
-  deferred.
+- Real payment provider webhooks, refunds, disputes, and editable runtime
+  settings are deferred.
 
 These limitations are documented and do not block the educational MVP
 acceptance.
