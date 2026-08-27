@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
+import csv
 import json
+import mimetypes
 import os
 from datetime import UTC, date, datetime, time, timedelta
+from io import StringIO
+from time import monotonic, sleep
 from typing import Any
 from urllib import error, parse, request
+from uuid import uuid4
 
 import streamlit as st
 
 from app import APP_NAME
-from app.dashboard.service import (
-    build_dashboard_metrics,
-    summarize_predictions,
-    summarize_transactions,
-)
 
 DEFAULT_API_BASE_URL = "http://127.0.0.1:18000/api/v1"
 MOCK_CENTS_PER_CREDIT = 50
@@ -56,6 +56,15 @@ TRANSACTION_STATUS_LABELS = {
     "pending": "В обработке",
     "voided": "Отменено",
 }
+PREDICTION_STATUS_LABELS = {
+    "queued": "В очереди",
+    "running": "Выполняется",
+    "succeeded": "Готово",
+    "failed": "Ошибка",
+}
+PENDING_PREDICTION_STATUSES = {"queued", "running"}
+PredictionCell = int | float | str
+PredictionRows = list[list[PredictionCell]]
 
 
 class DashboardApiError(RuntimeError):
@@ -86,6 +95,22 @@ def _api_base_url() -> str:
     )
 
 
+def _read_api_response(api_request: request.Request) -> dict[str, Any]:
+    try:
+        with request.urlopen(api_request, timeout=10) as response:
+            response_body = response.read().decode("utf-8")
+    except error.HTTPError as exc:
+        details = exc.read().decode("utf-8")
+        raise DashboardApiError(details or exc.reason) from exc
+    except error.URLError as exc:
+        raise DashboardApiError(str(exc.reason)) from exc
+
+    if not response_body:
+        return {}
+
+    return dict(json.loads(response_body))
+
+
 def _request_json(
     path: str,
     *,
@@ -109,20 +134,59 @@ def _request_json(
         headers["Content-Type"] = "application/json"
 
     api_request = request.Request(url, data=body, headers=headers, method=method)
+    return _read_api_response(api_request)
 
-    try:
-        with request.urlopen(api_request, timeout=10) as response:
-            response_body = response.read().decode("utf-8")
-    except error.HTTPError as exc:
-        details = exc.read().decode("utf-8")
-        raise DashboardApiError(details or exc.reason) from exc
-    except error.URLError as exc:
-        raise DashboardApiError(str(exc.reason)) from exc
 
-    if not response_body:
-        return {}
+def _encode_multipart_form(
+    fields: dict[str, str],
+    files: dict[str, tuple[str, bytes, str]],
+) -> tuple[str, bytes]:
+    boundary = f"----ml-dashboard-{uuid4().hex}"
+    chunks: list[bytes] = []
 
-    return dict(json.loads(response_body))
+    for name, value in fields.items():
+        chunks.extend(
+            [
+                f"--{boundary}\r\n".encode(),
+                f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode(),
+                value.encode("utf-8"),
+                b"\r\n",
+            ],
+        )
+
+    for name, (filename, content, content_type) in files.items():
+        chunks.extend(
+            [
+                f"--{boundary}\r\n".encode(),
+                (
+                    f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+                ).encode(),
+                f"Content-Type: {content_type}\r\n\r\n".encode(),
+                content,
+                b"\r\n",
+            ],
+        )
+
+    chunks.append(f"--{boundary}--\r\n".encode())
+    return boundary, b"".join(chunks)
+
+
+def _request_multipart(
+    path: str,
+    *,
+    token: str,
+    fields: dict[str, str],
+    files: dict[str, tuple[str, bytes, str]],
+) -> dict[str, Any]:
+    url = f"{_api_base_url().rstrip('/')}/{path.lstrip('/')}"
+    boundary, body = _encode_multipart_form(fields, files)
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {token}",
+        "Content-Type": f"multipart/form-data; boundary={boundary}",
+    }
+    api_request = request.Request(url, data=body, headers=headers, method="POST")
+    return _read_api_response(api_request)
 
 
 def _list_items(path: str, token: str) -> list[dict[str, Any]]:
@@ -168,6 +232,36 @@ def _confirm_payment(token: str, payment_id: int) -> dict[str, Any]:
         f"/payments/{payment_id}/confirm",
         method="POST",
         token=token,
+    )
+
+
+def _create_prediction(token: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return _request_json(
+        "/predictions",
+        method="POST",
+        token=token,
+        payload=payload,
+    )
+
+
+def _get_prediction(token: str, prediction_id: int) -> dict[str, Any]:
+    return _request_json(f"/predictions/{prediction_id}", token=token)
+
+
+def _upload_model(
+    token: str,
+    *,
+    name: str,
+    description: str,
+    filename: str,
+    content: bytes,
+    content_type: str,
+) -> dict[str, Any]:
+    return _request_multipart(
+        "/models",
+        token=token,
+        fields=_build_model_upload_fields(name=name, description=description),
+        files={"file": (filename, content, content_type)},
     )
 
 
@@ -229,6 +323,128 @@ def _positive_int(value: Any) -> int | None:
     if amount <= 0:
         return None
     return amount
+
+
+def _parse_prediction_cell(value: str) -> PredictionCell:
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("Заполните все значения в строках данных.")
+
+    try:
+        return int(normalized)
+    except ValueError:
+        try:
+            return float(normalized)
+        except ValueError:
+            return normalized
+
+
+def _parse_prediction_rows(raw_rows: str) -> PredictionRows:
+    rows: PredictionRows = []
+    for raw_line in raw_rows.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        separator = ";" if ";" in line and "," not in line else ","
+        rows.append([_parse_prediction_cell(cell) for cell in line.split(separator)])
+
+    if not rows:
+        raise ValueError("Добавьте хотя бы одну строку данных для prediction.")
+
+    return rows
+
+
+def _detect_csv_dialect(text: str) -> csv.Dialect:
+    sample = text[:2048]
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=",;")
+    except csv.Error:
+        return csv.excel
+
+
+def _parse_prediction_csv(content: bytes, *, has_header: bool = False) -> PredictionRows:
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError("CSV должен быть сохранен в кодировке UTF-8.") from exc
+
+    rows: PredictionRows = []
+    reader = csv.reader(StringIO(text), dialect=_detect_csv_dialect(text))
+    for index, raw_row in enumerate(reader):
+        if has_header and index == 0:
+            continue
+
+        cleaned_row = [cell.strip() for cell in raw_row]
+        if not any(cleaned_row):
+            continue
+        rows.append([_parse_prediction_cell(cell) for cell in cleaned_row])
+
+    if not rows:
+        raise ValueError("CSV должен содержать хотя бы одну строку данных для prediction.")
+
+    return rows
+
+
+def _build_prediction_payload_from_rows(model_id: int, rows: PredictionRows) -> dict[str, Any]:
+    resolved_model_id = _positive_int(model_id)
+    if resolved_model_id is None:
+        raise ValueError("Выберите модель для prediction.")
+    if not rows:
+        raise ValueError("Добавьте хотя бы одну строку данных для prediction.")
+
+    return {
+        "model_id": resolved_model_id,
+        "input_payload": {"rows": rows},
+    }
+
+
+def _build_prediction_payload(model_id: int, raw_rows: str) -> dict[str, Any]:
+    return _build_prediction_payload_from_rows(model_id, _parse_prediction_rows(raw_rows))
+
+
+def _build_model_upload_fields(*, name: str, description: str) -> dict[str, str]:
+    fields = {
+        "name": name.strip(),
+        "framework": "scikit-learn",
+    }
+    normalized_description = description.strip()
+    if normalized_description:
+        fields["metadata_json"] = json.dumps(
+            {"description": normalized_description},
+            ensure_ascii=False,
+        )
+    return fields
+
+
+def _mime_type_for_upload(filename: str, explicit_content_type: str | None) -> str:
+    if explicit_content_type:
+        return explicit_content_type
+
+    guessed_content_type = mimetypes.guess_type(filename)[0]
+    return guessed_content_type or "application/octet-stream"
+
+
+def _prediction_status_label(status: Any) -> str:
+    normalized_status = str(status or "")
+    return PREDICTION_STATUS_LABELS.get(normalized_status, normalized_status or "-")
+
+
+def _wait_for_prediction_result(
+    token: str,
+    prediction_id: int,
+    *,
+    timeout_seconds: float = 8.0,
+    interval_seconds: float = 1.0,
+) -> dict[str, Any]:
+    deadline = monotonic() + timeout_seconds
+    latest = _get_prediction(token, prediction_id)
+
+    while str(latest.get("status") or "") in PENDING_PREDICTION_STATUSES and monotonic() < deadline:
+        sleep(interval_seconds)
+        latest = _get_prediction(token, prediction_id)
+
+    return latest
 
 
 def _parse_api_datetime(value: Any) -> datetime | None:
@@ -333,10 +549,6 @@ def _build_payment_payload(credits_purchased: int) -> dict[str, Any]:
     }
 
 
-def _format_money_cents(amount_cents: int, currency: str = "USD") -> str:
-    return f"{currency.upper()} {amount_cents / 100:.2f}"
-
-
 def _format_credit_delta(transaction: dict[str, Any]) -> str:
     amount = _as_int(transaction.get("amount_credits"))
     prefix = "-" if transaction.get("direction") == "debit" else "+"
@@ -362,6 +574,26 @@ def _format_user_operation_rows(
     return rows
 
 
+def _format_json_preview(value: Any) -> str:
+    if value in (None, "", {}, []):
+        return "-"
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _format_prediction_rows(predictions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "Дата": _format_api_datetime(prediction.get("created_at")),
+            "ID": prediction.get("id"),
+            "Модель": prediction.get("model_id"),
+            "Статус": _prediction_status_label(prediction.get("status")),
+            "Результат": _format_json_preview(prediction.get("result_payload")),
+            "Ошибка": prediction.get("error_message") or "-",
+        }
+        for prediction in predictions
+    ]
+
+
 def _render_login() -> None:
     st.sidebar.header("Вход")
     with st.sidebar.expander("Настройки подключения"):
@@ -372,7 +604,7 @@ def _render_login() -> None:
     email = st.sidebar.text_input("Email или логин")
     password = st.sidebar.text_input("Пароль", type="password")
 
-    if st.sidebar.button("Войти", type="primary", use_container_width=True):
+    if st.sidebar.button("Войти", type="primary", width="stretch"):
         try:
             st.session_state["access_token"] = _login(email, password)
             st.session_state["login_error"] = ""
@@ -383,51 +615,9 @@ def _render_login() -> None:
         st.sidebar.error("Не удалось войти. Проверьте email, пароль и API адрес.")
 
     if st.session_state.get("access_token"):
-        if st.sidebar.button("Выйти", use_container_width=True):
+        if st.sidebar.button("Выйти", width="stretch"):
             st.session_state.pop("access_token", None)
             st.rerun()
-
-
-def _render_metric_grid(metrics: dict[str, int]) -> None:
-    columns = st.columns(6)
-    columns[0].metric("Баланс", metrics["credits_available"])
-    columns[1].metric("Задачи", metrics["predictions_total"])
-    columns[2].metric("Успешно", metrics["predictions_succeeded"])
-    columns[3].metric("Ошибки", metrics["predictions_failed"])
-    columns[4].metric("Потрачено", metrics["credits_spent"])
-    columns[5].metric("Модели", metrics["models_total"])
-
-    columns = st.columns(4)
-    columns[0].metric("Пополнено", metrics["credits_added"])
-    columns[1].metric("Платежи", metrics["successful_payments"])
-    columns[2].metric("Промокоды", metrics["promo_redemptions"])
-    columns[3].metric("Промо-кредиты", metrics["promo_credits"])
-
-
-def _render_overview(data: dict[str, Any]) -> None:
-    predictions = data["predictions"]
-    transactions = data["transactions"]
-    prediction_summary = summarize_predictions(predictions)
-    transaction_summary = summarize_transactions(transactions)
-
-    left, right = st.columns(2)
-    with left:
-        st.subheader("Статусы prediction")
-        status_rows = [
-            {"status": status, "count": count}
-            for status, count in prediction_summary.items()
-            if status != "total"
-        ]
-        st.dataframe(status_rows, hide_index=True, use_container_width=True)
-    with right:
-        st.subheader("Кредиты")
-        credit_rows = [
-            {"metric": "Начислено", "credits": transaction_summary["credited"]},
-            {"metric": "Списано", "credits": transaction_summary["debited"]},
-            {"metric": "Платежи", "credits": transaction_summary["payment_credits"]},
-            {"metric": "Промокоды", "credits": transaction_summary["promo_credits"]},
-        ]
-        st.dataframe(credit_rows, hide_index=True, use_container_width=True)
 
 
 def _render_promo_redeem(token: str) -> None:
@@ -472,9 +662,7 @@ def _render_balance_top_up(token: str) -> None:
                 step=1,
             ),
         )
-        st.caption(
-            f"Mock-платеж: {_format_money_cents(credits_value * MOCK_CENTS_PER_CREDIT)}",
-        )
+        st.caption("Курс обмена: 5 $ = 1 кредит")
         submitted = st.form_submit_button("Пополнить через mock-платеж", type="primary")
 
     if not submitted:
@@ -503,16 +691,198 @@ def _render_balance_top_up(token: str) -> None:
 def _render_user_operation_history(transactions: list[dict[str, Any]]) -> None:
     rows = _format_user_operation_rows(transactions)
     if rows:
-        st.dataframe(rows, hide_index=True, use_container_width=True)
+        st.dataframe(rows, hide_index=True, width="stretch")
     else:
         st.info("Пока нет операций по балансу.")
+
+
+def _render_prediction_result(token: str) -> None:
+    result = st.session_state.get("prediction_submission_result")
+    if not isinstance(result, dict):
+        return
+
+    prediction_id = _positive_int(result.get("id"))
+    status = str(result.get("status") or "")
+    status_label = _prediction_status_label(status)
+
+    if status == "succeeded":
+        st.success(f"Prediction #{prediction_id} готов.")
+        st.json(result.get("result_payload") or {})
+    elif status == "failed":
+        st.error(f"Prediction #{prediction_id}: ошибка.")
+        error_message = result.get("error_message")
+        if error_message:
+            st.write(str(error_message))
+    else:
+        st.info(f"Prediction #{prediction_id}: {status_label}.")
+
+    if prediction_id is not None and status in PENDING_PREDICTION_STATUSES:
+        if st.button("Обновить результат", width="stretch"):
+            try:
+                st.session_state["prediction_submission_result"] = _get_prediction(
+                    token,
+                    prediction_id,
+                )
+            except DashboardApiError as exc:
+                st.error(f"Не удалось обновить prediction: {_friendly_api_error(exc)}")
+            else:
+                st.rerun()
+
+
+def _model_select_options(models: list[dict[str, Any]]) -> dict[str, int]:
+    options: dict[str, int] = {}
+    for model in models:
+        model_id = _positive_int(model.get("id"))
+        if model_id is not None:
+            options[f"{model.get('name')} | ID {model_id}"] = model_id
+    return options
+
+
+def _render_prediction_panel(
+    token: str,
+    models: list[dict[str, Any]],
+) -> None:
+    success_message = st.session_state.pop("model_prediction_success", "")
+    if success_message:
+        st.success(success_message)
+
+    with st.container(border=True):
+        st.subheader("Сделать prediction")
+
+        available_model_options = _model_select_options(models)
+        if not available_model_options:
+            st.info("Сначала загрузите модель во вкладке `Загрузить новую модель`.")
+            return
+
+        selected_model_label = st.selectbox(
+            "Модель",
+            options=list(available_model_options),
+        )
+        selected_model_id = available_model_options[selected_model_label]
+        data_source = st.radio(
+            "Данные для prediction",
+            options=["Загрузить CSV", "Ввести вручную"],
+            horizontal=True,
+        )
+
+        with st.form("prediction-run-form"):
+            uploaded_prediction_csv = None
+            prediction_csv_has_header = False
+            raw_rows = ""
+
+            if data_source == "Загрузить CSV":
+                uploaded_prediction_csv = st.file_uploader(
+                    "CSV файл с данными",
+                    type=["csv"],
+                    key="prediction-csv-upload",
+                )
+                prediction_csv_has_header = st.checkbox("В первой строке есть заголовки")
+            else:
+                raw_rows = st.text_area(
+                    "Строки данных",
+                    height=120,
+                    placeholder="5.1, 3.5, 1.4, 0.2\n6.2, 3.4, 5.4, 2.3",
+                )
+
+            submitted = st.form_submit_button("Запустить prediction", type="primary")
+
+    if submitted:
+        try:
+            if data_source == "Загрузить CSV":
+                if uploaded_prediction_csv is None:
+                    st.warning("Загрузите CSV файл с данными.")
+                    return
+                payload = _build_prediction_payload_from_rows(
+                    selected_model_id,
+                    _parse_prediction_csv(
+                        uploaded_prediction_csv.getvalue(),
+                        has_header=prediction_csv_has_header,
+                    ),
+                )
+            else:
+                payload = _build_prediction_payload(selected_model_id, raw_rows)
+
+            created = _create_prediction(token, payload)
+            prediction_id = _positive_int(created.get("id"))
+            if prediction_id is None:
+                raise DashboardApiError("Prediction создан без корректного ID")
+
+            st.session_state["prediction_submission_result"] = _wait_for_prediction_result(
+                token,
+                prediction_id,
+            )
+            st.session_state["model_prediction_success"] = "Prediction отправлен в обработку."
+            st.rerun()
+        except ValueError as exc:
+            st.warning(str(exc))
+        except DashboardApiError as exc:
+            st.error(f"Prediction не запущен: {_friendly_api_error(exc)}")
+
+    _render_prediction_result(token)
+
+
+def _render_model_upload_tab(token: str, models: list[dict[str, Any]]) -> None:
+    success_message = st.session_state.pop("model_upload_success", "")
+    if success_message:
+        st.success(success_message)
+
+    with st.container(border=True):
+        st.subheader("Загрузить новую модель")
+        with st.form("model-upload-form"):
+            model_name = st.text_input("Название модели")
+            model_description = st.text_area("Описание модели", height=80)
+            uploaded_model = st.file_uploader(
+                "Файл модели",
+                type=["joblib", "pkl", "pickle"],
+                key="model-upload-file",
+            )
+            submitted = st.form_submit_button("Загрузить модель", type="primary")
+
+    if submitted:
+        if uploaded_model is None:
+            st.warning("Выберите файл модели.")
+            return
+        if not model_name.strip():
+            st.warning("Введите название модели.")
+            return
+
+        try:
+            uploaded = _upload_model(
+                token,
+                name=model_name,
+                description=model_description,
+                filename=uploaded_model.name,
+                content=uploaded_model.getvalue(),
+                content_type=_mime_type_for_upload(uploaded_model.name, uploaded_model.type),
+            )
+        except DashboardApiError as exc:
+            st.error(f"Модель не загружена: {_friendly_api_error(exc)}")
+            return
+
+        st.session_state["model_upload_success"] = f"Модель {uploaded.get('name')} загружена."
+        st.rerun()
+
+    model_rows = _format_rows(models, ["id", "name", "framework", "status", "created_at"])
+    if model_rows:
+        st.subheader("Мои модели")
+        st.dataframe(model_rows, hide_index=True, width="stretch")
+    else:
+        st.info("Пока нет загруженных моделей.")
+
+
+def _render_prediction_history(predictions: list[dict[str, Any]]) -> None:
+    rows = _format_prediction_rows(predictions)
+    if rows:
+        st.dataframe(rows, hide_index=True, width="stretch")
+    else:
+        st.info("Пока нет prediction-задач.")
 
 
 def _render_admin_promo_list(promo_codes: list[dict[str, Any]]) -> None:
     st.subheader("Промокоды")
     promo_rows = _format_admin_promo_rows(promo_codes)
     if promo_rows:
-        st.dataframe(promo_rows, hide_index=True, use_container_width=True)
+        st.dataframe(promo_rows, hide_index=True, width="stretch")
     else:
         st.info("Пока нет созданных промокодов.")
 
@@ -622,35 +992,22 @@ def _render_admin_dashboard(token: str, user: dict[str, Any]) -> None:
 
 
 def _render_tables(data: dict[str, Any], token: str) -> None:
-    tab_names = ["Обзор", "Предсказания", "История операций", "Модели", "Пополнить баланс"]
+    tab_names = [
+        "Загрузить новую модель",
+        "История предсказаний",
+        "Пополнить баланс",
+        "История операций",
+    ]
     tabs = st.tabs(tab_names)
-    overview_tab, predictions_tab, history_tab, models_tab, top_up_tab = tabs[:5]
+    model_upload_tab, predictions_tab, top_up_tab, history_tab = tabs[:4]
 
-    with overview_tab:
-        _render_overview(data)
+    with model_upload_tab:
+        _render_model_upload_tab(token, data["models"])
 
     with predictions_tab:
-        st.dataframe(
-            _format_rows(
-                data["predictions"],
-                ["id", "model_id", "status", "result_payload", "error_message", "created_at"],
-            ),
-            hide_index=True,
-            use_container_width=True,
-        )
-
-    with history_tab:
-        _render_user_operation_history(data["transactions"])
-
-    with models_tab:
-        st.dataframe(
-            _format_rows(data["models"], ["id", "name", "framework", "status", "created_at"]),
-            hide_index=True,
-            use_container_width=True,
-        )
+        _render_prediction_history(data["predictions"])
 
     with top_up_tab:
-        st.metric("Текущий баланс", data["balance"].get("credits_available", 0))
         payment_block, promo_block = st.columns(2)
         with payment_block:
             st.subheader("Пополнить баланс")
@@ -658,6 +1015,9 @@ def _render_tables(data: dict[str, Any], token: str) -> None:
         with promo_block:
             st.subheader("Активировать промокод")
             _render_promo_redeem(token)
+
+    with history_tab:
+        _render_user_operation_history(data["transactions"])
 
 
 def main() -> None:
@@ -691,15 +1051,7 @@ def main() -> None:
     if email:
         st.caption(str(email))
 
-    metrics = build_dashboard_metrics(
-        balance=data["balance"],
-        predictions=data["predictions"],
-        transactions=data["transactions"],
-        payments=data["payments"],
-        models=data["models"],
-        redemptions=data["redemptions"],
-    )
-    _render_metric_grid(metrics)
+    _render_prediction_panel(token, data["models"])
     _render_tables(data, token)
 
 

@@ -190,13 +190,16 @@ The Streamlit dashboard is available at:
 http://127.0.0.1:18501
 ```
 
-Authenticated users can view their balance, prediction statuses, uploaded
-models, and a unified balance operation history. Users can also top up credits
-with a one-button mock payment and redeem promo codes from the dashboard top-up
-tab. Admin users enter a separate promo-management mode after login, without
-user metric cards or user dashboard tabs. The admin screen shows one promo code
-list at the top plus creation and deactivation controls. The dashboard uses the
-same API login flow as Swagger.
+Authenticated users see a prediction panel above the tabs where they can select
+one uploaded model, upload prediction rows from CSV or enter them manually
+without raw JSON, run the prediction, and see the prediction status/result. The
+user dashboard tabs cover new model upload, prediction history, balance top-up,
+and operation history. Users can also top up credits with a one-button mock
+payment and redeem promo codes from the dashboard top-up tab. Admin users enter
+a separate promo-management mode after login, without user metric cards or user
+dashboard tabs. The admin screen shows one promo code list at the top plus
+creation and deactivation controls. The dashboard uses the same API login flow
+as Swagger.
 
 The dashboard flow is documented in `docs/dashboard.md`.
 
@@ -228,7 +231,7 @@ model upload, asynchronous predictions, billing, mock payments, promo codes,
 analytics aggregation, monitoring metrics, and cross-user data isolation.
 
 Coverage is configured in `pyproject.toml` with a minimum total threshold of
-70%. The current local suite result is 80 passed tests and 79% total coverage.
+70%. The current local suite result is 90 passed tests and 76% total coverage.
 
 The testing strategy is documented in `docs/testing.md`.
 

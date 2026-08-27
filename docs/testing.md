@@ -24,8 +24,8 @@ coverage report --fail-under=70
 The current local suite result is:
 
 ```text
-80 passed, 8 warnings
-TOTAL coverage: 79%
+90 passed, 8 warnings
+TOTAL coverage: 76%
 ```
 
 The warnings come from third-party test/runtime dependencies and do not indicate
@@ -61,5 +61,6 @@ highest-risk seams across already implemented modules:
 - A second user cannot see or fetch another user's domain data.
 - Billing idempotency keys prevent duplicate credit/debit ledger rows.
 
-The later Security, dashboard, admin-login, and user top-up stages extend the
-suite to 80 tests while keeping total coverage above the 70% gate.
+The later Security, dashboard, admin-login, user top-up, and user model action
+stages extend the suite to 90 tests while keeping total coverage above the 70%
+gate.

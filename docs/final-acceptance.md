@@ -17,7 +17,7 @@ Date: 2026-08-26
 | Swagger/OpenAPI is available | Passed | `GET /openapi.json` and Swagger UI are available on the backend |
 | Project runs through Docker Compose | Passed | Backend, worker, dashboard, PostgreSQL, Redis, Prometheus, and Grafana are running |
 | Prometheus/Grafana are configured | Passed | `/metrics` is available, Prometheus query succeeds, and Grafana health is OK |
-| Test coverage is greater than 70% | Passed | 80 tests passed; total coverage is 79% |
+| Test coverage is greater than 70% | Passed | 90 tests passed; total coverage is 76% |
 | Short business plan exists | Passed | `docs/business-plan.md` is complete and linked from the docs index |
 
 ## Runtime Verification
@@ -76,13 +76,13 @@ ruff format --check .
 90 files already formatted
 
 pytest
-80 passed, 8 warnings
+90 passed, 8 warnings
 
 coverage run -m pytest
-80 passed, 8 warnings
+90 passed, 8 warnings
 
 coverage report --fail-under=70
-TOTAL coverage: 79%
+TOTAL coverage: 76%
 ```
 
 The warnings come from third-party dependencies used by the test client and

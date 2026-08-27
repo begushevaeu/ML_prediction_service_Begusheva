@@ -1,16 +1,27 @@
 """Streamlit dashboard helper tests."""
 
+import json
 from datetime import UTC, date, datetime, time
+
+import pytest
 
 from app.dashboard.main import (
     DashboardApiError,
+    _build_model_upload_fields,
     _build_payment_payload,
+    _build_prediction_payload,
+    _build_prediction_payload_from_rows,
     _build_promo_code_payload,
     _combine_datetime,
     _format_admin_promo_rows,
+    _format_prediction_rows,
     _format_user_operation_rows,
     _friendly_api_error,
     _is_admin,
+    _mime_type_for_upload,
+    _model_select_options,
+    _parse_prediction_csv,
+    _parse_prediction_rows,
     _promo_code_status,
 )
 
@@ -69,6 +80,71 @@ def test_build_payment_payload_uses_mock_credit_price() -> None:
         "amount_cents": 600,
         "currency": "USD",
     }
+
+
+def test_parse_prediction_rows_accepts_friendly_csv_input() -> None:
+    assert _parse_prediction_rows("1, 2.5, vip\n3;4;5") == [
+        [1, 2.5, "vip"],
+        [3, 4, 5],
+    ]
+
+
+def test_parse_prediction_rows_rejects_empty_input() -> None:
+    with pytest.raises(ValueError, match="хотя бы одну строку"):
+        _parse_prediction_rows(" \n ")
+
+
+def test_parse_prediction_csv_accepts_header_and_semicolon_separator() -> None:
+    content = b"feature_a;feature_b;segment\n1;2.5;vip\n3;4;regular\n"
+
+    assert _parse_prediction_csv(content, has_header=True) == [
+        [1, 2.5, "vip"],
+        [3, 4, "regular"],
+    ]
+
+
+def test_parse_prediction_csv_rejects_empty_file() -> None:
+    with pytest.raises(ValueError, match="CSV должен содержать"):
+        _parse_prediction_csv(b"\n\n")
+
+
+def test_build_prediction_payload_uses_rows_contract() -> None:
+    assert _build_prediction_payload(7, "1,2\n3,4") == {
+        "model_id": 7,
+        "input_payload": {"rows": [[1, 2], [3, 4]]},
+    }
+
+
+def test_build_prediction_payload_from_rows_uses_uploaded_csv_rows() -> None:
+    assert _build_prediction_payload_from_rows(7, [[1, 2], [3, 4]]) == {
+        "model_id": 7,
+        "input_payload": {"rows": [[1, 2], [3, 4]]},
+    }
+
+
+def test_build_model_upload_fields_keeps_description_as_metadata() -> None:
+    fields = _build_model_upload_fields(name=" Churn ", description="Demo model")
+
+    assert fields["name"] == "Churn"
+    assert fields["framework"] == "scikit-learn"
+    assert json.loads(fields["metadata_json"]) == {"description": "Demo model"}
+
+
+def test_model_select_options_use_uploaded_model_names_and_ids() -> None:
+    assert _model_select_options(
+        [
+            {"id": 7, "name": "Churn"},
+            {"id": None, "name": "Broken"},
+            {"id": "oops", "name": "Invalid"},
+        ],
+    ) == {"Churn | ID 7": 7}
+
+
+def test_mime_type_for_upload_falls_back_to_binary() -> None:
+    assert _mime_type_for_upload("model.joblib", "application/octet-stream") == (
+        "application/octet-stream"
+    )
+    assert _mime_type_for_upload("model.unknown", None) == "application/octet-stream"
 
 
 def test_promo_code_status_uses_dates_limits_and_active_flag() -> None:
@@ -205,6 +281,32 @@ def test_format_user_operation_rows_merges_balance_history() -> None:
             "Изменение": "-1",
             "Баланс после": 14,
             "Статус": "Готово",
+        },
+    ]
+
+
+def test_format_prediction_rows_uses_friendly_status_and_result() -> None:
+    rows = _format_prediction_rows(
+        [
+            {
+                "id": 3,
+                "model_id": 9,
+                "status": "succeeded",
+                "result_payload": {"predictions": [15.0]},
+                "error_message": None,
+                "created_at": "2026-08-27T12:00:00+00:00",
+            },
+        ],
+    )
+
+    assert rows == [
+        {
+            "Дата": "2026-08-27 12:00",
+            "ID": 3,
+            "Модель": 9,
+            "Статус": "Готово",
+            "Результат": '{"predictions": [15.0]}',
+            "Ошибка": "-",
         },
     ]
 
