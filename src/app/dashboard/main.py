@@ -103,8 +103,8 @@ def _inject_dashboard_styles(*, hide_sidebar: bool = False) -> None:
             --ml-sidebar: #111827;
             --ml-text: #111827;
             --ml-muted: #6b7280;
-            --ml-border: #e5e7eb;
-            --ml-surface: #ffffff;
+            --ml-border: #4f97d4;
+            --ml-surface: #70ade6;
             --ml-app-bg: #0f172a;
             --ml-page-text: #f8fafc;
             --ml-page-muted: #cbd5e1;
@@ -230,7 +230,7 @@ def _inject_dashboard_styles(*, hide_sidebar: bool = False) -> None:
             height: 0.85rem;
         }
         .ml-metric-card {
-            background: #ffffff;
+            background: var(--ml-surface);
             border: 1px solid var(--ml-border);
             border-radius: 8px;
             box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
@@ -258,7 +258,7 @@ def _inject_dashboard_styles(*, hide_sidebar: bool = False) -> None:
             margin-top: 0.45rem;
         }
         .ml-activity-summary {
-            background: #ffffff;
+            background: var(--ml-surface);
             border: 1px solid var(--ml-border);
             border-radius: 8px;
             box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
@@ -374,6 +374,12 @@ def _inject_dashboard_styles(*, hide_sidebar: bool = False) -> None:
             -webkit-text-fill-color: var(--ml-text) !important;
         }
         main div[style*="background-color: rgb(255, 255, 255)"],
+        main div[style*="background: rgb(255, 255, 255)"],
+        main div[style*="background-color: white"] {
+            background: var(--ml-surface) !important;
+            background-color: var(--ml-surface) !important;
+        }
+        main div[style*="background-color: rgb(255, 255, 255)"],
         main div[style*="background-color: rgb(255, 255, 255)"] *:not(svg):not(path),
         main div[style*="background: rgb(255, 255, 255)"],
         main div[style*="background: rgb(255, 255, 255)"] *:not(svg):not(path),
@@ -395,16 +401,16 @@ def _inject_dashboard_styles(*, hide_sidebar: bool = False) -> None:
         main textarea,
         main [data-baseweb="input"] input,
         main [data-baseweb="textarea"] textarea {
-            background: #ffffff !important;
+            background: var(--ml-surface) !important;
             color: var(--ml-text) !important;
             -webkit-text-fill-color: var(--ml-text) !important;
             caret-color: var(--ml-purple) !important;
         }
         main input::placeholder,
         main textarea::placeholder {
-            color: #6b7280 !important;
+            color: #334155 !important;
             opacity: 1 !important;
-            -webkit-text-fill-color: #6b7280 !important;
+            -webkit-text-fill-color: #334155 !important;
         }
         main [data-baseweb="select"],
         main [data-baseweb="select"] * {
@@ -466,7 +472,6 @@ def _inject_dashboard_styles(*, hide_sidebar: bool = False) -> None:
 def _render_page_title(title: str, subtitle: str, *, kicker: str = "USER Cabinet") -> None:
     st.markdown(f'<div class="ml-page-kicker">{escape(kicker)}</div>', unsafe_allow_html=True)
     st.markdown(f'<h1 class="ml-page-title">{escape(title)}</h1>', unsafe_allow_html=True)
-    st.markdown(f'<p class="ml-page-subtitle">{escape(subtitle)}</p>', unsafe_allow_html=True)
 
 
 def _render_metric_card(label: str, value: Any, caption: str | None = None) -> None:
