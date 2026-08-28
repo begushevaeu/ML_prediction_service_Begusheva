@@ -15,7 +15,7 @@ from app.core.errors import http_exception_handler, validation_exception_handler
 from app.db.session import SessionLocal
 from app.monitoring.metrics import record_http_request
 from app.monitoring.router import router as monitoring_router
-from app.users.service import ensure_local_admin_user
+from app.users.service import ensure_local_admin_user, ensure_local_demo_users
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -29,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if resolved_settings.bootstrap_local_admin:
             with SessionLocal() as session:
                 ensure_local_admin_user(session, resolved_settings)
+                ensure_local_demo_users(session, resolved_settings)
         yield
 
     application = FastAPI(
