@@ -141,9 +141,21 @@ def grant_credits(
 class FakeTask:
     def __init__(self) -> None:
         self.prediction_ids: list[int] = []
+        self.queues: list[str | None] = []
 
     def delay(self, prediction_id: int) -> SimpleNamespace:
         self.prediction_ids.append(prediction_id)
+        return SimpleNamespace(id=f"celery-{prediction_id}")
+
+    def apply_async(
+        self,
+        *,
+        args: tuple[int, ...],
+        queue: str | None = None,
+    ) -> SimpleNamespace:
+        prediction_id = args[0]
+        self.prediction_ids.append(prediction_id)
+        self.queues.append(queue)
         return SimpleNamespace(id=f"celery-{prediction_id}")
 
 
@@ -171,6 +183,7 @@ def test_create_prediction_enqueues_task_and_worker_saves_result(
     assert payload["status"] == "queued"
     assert payload["celery_task_id"] == f"celery-{payload['id']}"
     assert fake_task.prediction_ids == [payload["id"]]
+    assert fake_task.queues == ["celery"]
 
     result = execute_prediction_task(payload["id"], session_factory=session_factory)
     assert result["status"] == "succeeded"

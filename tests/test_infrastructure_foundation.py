@@ -11,6 +11,7 @@ def test_settings_include_infrastructure_urls() -> None:
     assert settings.database_url.startswith("postgresql+psycopg://")
     assert settings.redis_url == "redis://redis:6379/0"
     assert settings.model_storage_path.endswith("/models")
+    assert settings.celery_task_queue == "celery"
 
 
 def test_celery_app_uses_redis_broker_and_backend() -> None:
@@ -20,6 +21,7 @@ def test_celery_app_uses_redis_broker_and_backend() -> None:
 
     assert celery_app.conf.broker_url == "redis://redis-test:6379/5"
     assert celery_app.conf.result_backend == "redis://redis-test:6379/5"
+    assert celery_app.conf.task_default_queue == "celery"
 
 
 def test_worker_healthcheck_task_payload() -> None:

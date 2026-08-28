@@ -20,6 +20,7 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
         enable_utc=True,
         result_serializer="json",
         task_serializer="json",
+        task_default_queue=resolved_settings.celery_task_queue,
         task_track_started=True,
         timezone="UTC",
     )

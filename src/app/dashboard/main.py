@@ -225,6 +225,10 @@ def _inject_dashboard_styles(*, hide_sidebar: bool = False) -> None:
             color: var(--ml-page-muted);
             font-size: 0.9rem;
         }
+        .ml-button-gap,
+        .ml-section-gap {
+            height: 0.85rem;
+        }
         .ml-metric-card {
             background: #ffffff;
             border: 1px solid var(--ml-border);
@@ -1264,7 +1268,6 @@ def _render_prediction_history_detail(token: str) -> None:
     prediction_id = _positive_int(detail.get("id"))
     with st.container(border=True):
         st.subheader(f"Prediction #{prediction_id or '-'}")
-        _render_prediction_stage(detail.get("status"))
         st.markdown(_status_badge_html(detail.get("status")), unsafe_allow_html=True)
 
         result_payload = detail.get("result_payload")
@@ -1457,7 +1460,6 @@ def _render_prediction_result(token: str) -> None:
     status = str(result.get("status") or "")
     status_label = _prediction_status_label(status)
 
-    _render_prediction_stage(status)
     if status == "succeeded":
         st.success(f"Prediction #{prediction_id} готов.")
         st.json(result.get("result_payload") or {})
@@ -1684,6 +1686,7 @@ def _render_user_overview(token: str, data: dict[str, Any]) -> None:
     balance_column, predictions_column, models_column = st.columns(3)
     with balance_column:
         _render_metric_card("Баланс", f"{metrics['credits_available']} кредитов")
+        st.markdown('<div class="ml-button-gap"></div>', unsafe_allow_html=True)
         if st.button("Пополнить баланс", key="overview-top-up", type="primary", width="stretch"):
             _navigate_user("Баланс")
     with predictions_column:
@@ -1700,21 +1703,13 @@ def _render_user_overview(token: str, data: dict[str, Any]) -> None:
         )
 
     st.divider()
-    action_column, note_column = st.columns([1, 2])
-    with action_column:
-        if st.button(
-            "Новое предсказание",
-            key="overview-new-prediction",
-            type="primary",
-            width="stretch",
-        ):
-            _navigate_user("Предсказания")
-    with note_column:
-        st.markdown(
-            '<span class="ml-note">Prediction будет создан асинхронно. '
-            "После запуска статус можно обновлять на странице предсказаний.</span>",
-            unsafe_allow_html=True,
-        )
+    if st.button(
+        "Сделать новое предсказание",
+        key="overview-new-prediction",
+        type="primary",
+        width="stretch",
+    ):
+        _navigate_user("Предсказания")
 
     st.subheader("Последние предсказания")
     _render_prediction_table(
@@ -1801,6 +1796,7 @@ def _render_user_balance_page(token: str, data: dict[str, Any]) -> None:
     balance = data["balance"]
     _render_metric_card("Текущий баланс", f"{_as_int(balance.get('credits_available'))} кредитов")
 
+    st.markdown('<div class="ml-section-gap"></div>', unsafe_allow_html=True)
     top_up_column, promo_column = st.columns(2)
     with top_up_column:
         with st.container(border=True):
@@ -2196,6 +2192,7 @@ def _render_admin_users_page(token: str) -> None:
     with detail_columns[3]:
         _render_metric_card("Транзакции", detail.get("transactions_total", 0))
 
+    st.markdown('<div class="ml-section-gap"></div>', unsafe_allow_html=True)
     desired_active_state = not bool(detail.get("is_active"))
     action_label = "Разблокировать" if desired_active_state else "Заблокировать"
     if st.button(action_label, type="primary", width="stretch"):

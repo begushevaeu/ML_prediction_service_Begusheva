@@ -41,6 +41,7 @@ class Settings:
     model_storage_path: str = "/var/lib/ml_prediction_service/models"
     max_model_upload_size_bytes: int = 10 * 1024 * 1024
     prediction_price_credits: int = 1
+    celery_task_queue: str = "celery"
     bootstrap_local_admin: bool = False
     local_admin_username: str = "admin"
     local_admin_email: str = "admin@example.com"
@@ -107,6 +108,7 @@ def get_settings() -> Settings:
             "PREDICTION_PRICE_CREDITS",
             Settings.prediction_price_credits,
         ),
+        celery_task_queue=os.getenv("CELERY_TASK_QUEUE", Settings.celery_task_queue),
         bootstrap_local_admin=_read_bool(
             "BOOTSTRAP_LOCAL_ADMIN",
             Settings.bootstrap_local_admin,

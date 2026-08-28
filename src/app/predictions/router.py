@@ -135,7 +135,10 @@ def create_prediction(
     session.commit()
     session.refresh(prediction)
 
-    async_result = run_prediction_task.delay(prediction.id)
+    async_result = run_prediction_task.apply_async(
+        args=(prediction.id,),
+        queue=settings.celery_task_queue,
+    )
     prediction.celery_task_id = async_result.id
     session.commit()
     session.refresh(prediction)
