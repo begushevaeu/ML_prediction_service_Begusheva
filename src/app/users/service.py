@@ -12,6 +12,11 @@ from app.users.schemas import UserCreate, UserRead, UserUpdate, normalize_email
 DEFAULT_USER_ROLE = "user"
 ADMIN_ROLE = "admin"
 LOCAL_ADMIN_ENVS = {"local", "dev", "development"}
+LOCAL_DEMO_USERS = (
+    ("user1@example.com", "user12345", "Demo User 1"),
+    ("user2@example.com", "user12345", "Demo User 2"),
+    ("user3@example.com", "user12345", "Demo User 3"),
+)
 
 
 class DuplicateUserError(ValueError):
@@ -134,6 +139,42 @@ def ensure_local_admin_user(session: Session, settings: Settings) -> User | None
     return admin_user
 
 
+def ensure_local_demo_users(session: Session, settings: Settings) -> list[User]:
+    """Create or refresh local demo user accounts when bootstrap is enabled."""
+
+    if not _local_admin_enabled(settings):
+        return []
+
+    user_role = ensure_role(session, DEFAULT_USER_ROLE, "Default application user")
+    demo_users: list[User] = []
+    for email, password, full_name in LOCAL_DEMO_USERS:
+        normalized_email = normalize_email(email)
+        user = session.scalar(select(User).where(User.email == normalized_email))
+        if user is None:
+            user = User(
+                email=normalized_email,
+                password_hash=hash_password(password),
+                full_name=full_name,
+                is_active=True,
+                role=user_role,
+            )
+            user.credit_balance = CreditBalance(credits_available=0)
+            session.add(user)
+        else:
+            user.password_hash = hash_password(password)
+            user.full_name = user.full_name or full_name
+            user.is_active = True
+            user.role = user_role
+            if user.credit_balance is None:
+                user.credit_balance = CreditBalance(credits_available=0)
+        demo_users.append(user)
+
+    session.commit()
+    for user in demo_users:
+        session.refresh(user)
+    return demo_users
+
+
 def update_user(user: User, payload: UserUpdate, session: Session) -> User:
     """Update fields the current user is allowed to manage."""
 
@@ -165,6 +206,7 @@ __all__ = [
     "authenticate_user",
     "create_user",
     "ensure_local_admin_user",
+    "ensure_local_demo_users",
     "ensure_role",
     "get_user_by_email",
     "update_user",

@@ -14,7 +14,12 @@ from app.db import Base
 from app.db.models import CreditBalance, Role, User
 from app.db.session import get_db_session
 from app.main import create_app
-from app.users.service import ADMIN_ROLE, ensure_local_admin_user
+from app.users.service import (
+    ADMIN_ROLE,
+    LOCAL_DEMO_USERS,
+    ensure_local_admin_user,
+    ensure_local_demo_users,
+)
 
 TEST_SETTINGS = Settings(
     app_env="test",
@@ -236,3 +241,24 @@ def test_local_admin_can_login_with_short_admin_credentials(
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "role": "admin"}
+
+
+def test_local_demo_users_can_login_with_readme_credentials(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    local_settings = Settings(
+        app_env="local",
+        jwt_secret_key="test-secret-with-at-least-thirty-two-bytes",
+        bootstrap_local_admin=True,
+    )
+    client.app.dependency_overrides[get_settings] = lambda: local_settings
+    ensure_local_demo_users(db_session, local_settings)
+
+    for email, password, _full_name in LOCAL_DEMO_USERS:
+        token = login_user(client, email=email, password=password)
+        response = client.get("/api/v1/users/me", headers=auth_headers(token))
+
+        assert response.status_code == 200
+        assert response.json()["email"] == email
+        assert response.json()["role"] == "user"
